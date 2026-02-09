@@ -13,6 +13,7 @@ function App() {
   })
   const [selectedCategory, setSelectedCategory] = useState('simple')
   const [selectedTemplate, setSelectedTemplate] = useState('simple')
+  const [previewTemplate, setPreviewTemplate] = useState(null)
   const [view, setView] = useState('generate') // 'generate' | 'auth'
   const [authMode, setAuthMode] = useState('login') // 'login' | 'signup'
   const [authData, setAuthData] = useState({ name: '', email: '', password: '' })
@@ -184,6 +185,39 @@ function App() {
         <div className="gradient-orb orb-2"></div>
         <div className="gradient-orb orb-3"></div>
       </div>
+
+      {/* Preview Modal */}
+      {previewTemplate && (
+        <div className="preview-modal" onClick={() => setPreviewTemplate(null)}>
+          <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-modal-header">
+              <h2>Template Preview: {previewTemplate.name}</h2>
+              <button className="close-preview" onClick={() => setPreviewTemplate(null)}>✕</button>
+            </div>
+            <div className="preview-iframe-container">
+              <iframe 
+                src={`/api/preview/${previewTemplate.id}`}
+                className="preview-iframe"
+                title="Template Preview"
+              />
+            </div>
+            <div className="preview-modal-footer">
+              <button 
+                className="select-template-btn"
+                onClick={() => {
+                  setSelectedTemplate(previewTemplate.id);
+                  setPreviewTemplate(null);
+                }}
+              >
+                Select This Template
+              </button>
+              <button className="cancel-preview-btn" onClick={() => setPreviewTemplate(null)}>
+                Close Preview
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Navigation */}
       <nav className="top-nav">
@@ -405,7 +439,19 @@ function App() {
                         <h3>{template.name}</h3>
                         <p>{template.desc}</p>
                       </div>
-                      {selectedTemplate === template.id && <div className="template-badge">✓ Selected</div>}
+                      <div className="template-actions">
+                        <button
+                          type="button"
+                          className="preview-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewTemplate(template);
+                          }}
+                        >
+                          👁️ Preview
+                        </button>
+                        {selectedTemplate === template.id && <div className="template-badge">✓ Selected</div>}
+                      </div>
                     </div>
                   ))}
                 </div>

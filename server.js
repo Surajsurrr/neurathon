@@ -7,6 +7,7 @@ const archiver = require('archiver');
 const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
 const Profile = require('./models/Profile');
+const sampleData = require('./sampleData');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
@@ -116,6 +117,43 @@ app.post('/api/generate', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Generation failed', details: err.message });
+  }
+});
+
+// Preview endpoint - renders template with sample data
+app.get('/api/preview/:templateId', async (req, res) => {
+  try {
+    const templateId = req.params.templateId;
+    const validTemplates = [
+      'simple', 'simple-gradient', 'simple-dark',
+      'modern', 'modern-glass', 'modern-cyber',
+      'minimal', 'minimal-serif', 'minimal-mono',
+      'creative', 'creative-bold', 'creative-neon'
+    ];
+
+    if (!validTemplates.includes(templateId)) {
+      return res.status(400).send('Invalid template ID');
+    }
+
+    // Read template files
+    const tplPath = path.join(TEMPLATES_DIR, templateId, 'index.hbs');
+    const cssPath = path.join(TEMPLATES_DIR, templateId, 'style.css');
+    
+    const tplSrc = await fs.readFile(tplPath, 'utf8');
+    const cssSrc = await fs.readFile(cssPath, 'utf8');
+    
+    // Compile and render with sample data
+    const tpl = Handlebars.compile(tplSrc);
+    const html = tpl(sampleData);
+    
+    // Inject CSS inline for preview
+    const htmlWithStyle = html.replace('</head>', `<style>${cssSrc}</style></head>`);
+    
+    res.setHeader('Content-Type', 'text/html');
+    res.send(htmlWithStyle);
+  } catch (err) {
+    console.error('Preview error:', err);
+    res.status(500).send('Preview generation failed');
   }
 });
 
