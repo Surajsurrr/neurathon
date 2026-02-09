@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 function App() {
   const [formData, setFormData] = useState({
@@ -8,9 +8,55 @@ function App() {
     skills: '',
     projects: [{ title: '', description: '', link: '' }]
   })
+  const [view, setView] = useState('generate') // 'generate' | 'auth'
+  const [authMode, setAuthMode] = useState('login') // 'login' | 'signup'
+  const [authData, setAuthData] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    const cursor = document.querySelector('.custom-cursor')
+    const cursorDot = document.querySelector('.custom-cursor-dot')
+    
+    let mouseX = 0
+    let mouseY = 0
+    let cursorX = 0
+    let cursorY = 0
+    let dotX = 0
+    let dotY = 0
+
+    const handleMouseMove = (e) => {
+      mouseX = e.clientX
+      mouseY = e.clientY
+    }
+
+    const animateCursor = () => {
+      // Dot follows immediately (fast)
+      dotX += (mouseX - dotX) * 0.9
+      dotY += (mouseY - dotY) * 0.9
+      
+      // Outer ring follows with delay (slower, slimy effect)
+      cursorX += (mouseX - cursorX) * 0.15
+      cursorY += (mouseY - cursorY) * 0.15
+      
+      if (cursorDot) {
+        cursorDot.style.transform = `translate(${dotX}px, ${dotY}px)`
+      }
+      if (cursor) {
+        cursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`
+      }
+      
+      requestAnimationFrame(animateCursor)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    animateCursor()
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -80,129 +126,312 @@ function App() {
     }
   }
 
+  const handleAuthChange = (e) => {
+    setAuthData({ ...authData, [e.target.name]: e.target.value })
+  }
+
+  const handleAuthSubmit = (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    // Mock auth — in a real app call backend endpoints
+    if (authMode === 'login') {
+      if (!authData.email || !authData.password) return setError('Please provide email and password')
+      setSuccess('Logged in (mock).')
+    } else {
+      if (!authData.name || !authData.email || !authData.password) return setError('Please fill all fields')
+      setSuccess('Account created (mock).')
+    }
+  }
+
   return (
-    <div className="container">
-      <div className="header">
-        <h1>✨ AI Portfolio Generator</h1>
-        <p>Create your stunning portfolio in seconds</p>
+    <div className="portfolio-app">
+      {/* Custom Cursor */}
+      <div className="custom-cursor"></div>
+      <div className="custom-cursor-dot"></div>
+      
+      {/* Gradient Background */}
+      <div className="gradient-bg">
+        <div className="gradient-orb orb-1"></div>
+        <div className="gradient-orb orb-2"></div>
+        <div className="gradient-orb orb-3"></div>
       </div>
-
-      {error && <div className="error">{error}</div>}
-      {success && <div className="success">{success}</div>}
-
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="name">Full Name *</label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            value={formData.name}
-            onChange={handleInputChange}
-            placeholder="John Doe"
-            required
-          />
+      
+      {/* Navigation */}
+      <nav className="top-nav">
+        <div className="nav-container">
+          <div className="brand">
+            <span className="brand-icon">⚡</span>
+            <span className="brand-name">Portfolio<span className="accent">AI</span></span>
+          </div>
+          <div className="nav-links">
+            <button 
+              className={`nav-link ${view === 'generate' ? 'active' : ''}`}
+              onClick={() => setView('generate')}
+            >
+              <span className="link-icon">🎨</span>
+              Create
+            </button>
+            <button 
+              className={`nav-link ${view === 'auth' ? 'active' : ''}`}
+              onClick={() => { setView('auth'); setAuthMode('login') }}
+            >
+              <span className="link-icon">👤</span>
+              Account
+            </button>
+          </div>
         </div>
+      </nav>
 
-        <div className="form-group">
-          <label htmlFor="role">Role / Title</label>
-          <input
-            type="text"
-            id="role"
-            name="role"
-            value={formData.role}
-            onChange={handleInputChange}
-            placeholder="Full Stack Developer"
-          />
-        </div>
+      <div className="main-content">
+        {error && (
+          <div className="notification error-notification">
+            <span className="notif-icon">⚠️</span>
+            <span>{error}</span>
+          </div>
+        )}
+        {success && (
+          <div className="notification success-notification">
+            <span className="notif-icon">✓</span>
+            <span>{success}</span>
+          </div>
+        )}
 
-        <div className="form-group">
-          <label htmlFor="bio">Bio</label>
-          <textarea
-            id="bio"
-            name="bio"
-            value={formData.bio}
-            onChange={handleInputChange}
-            placeholder="Tell us about yourself..."
-          />
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="skills">Skills (comma separated)</label>
-          <input
-            type="text"
-            id="skills"
-            name="skills"
-            value={formData.skills}
-            onChange={handleInputChange}
-            placeholder="JavaScript, React, Node.js, MongoDB"
-          />
-        </div>
-
-        <div className="projects-section">
-          <h3>Projects</h3>
-          {formData.projects.map((project, index) => (
-            <div key={index} className="project-card">
-              <div className="project-header">
-                <strong>Project {index + 1}</strong>
-                {formData.projects.length > 1 && (
-                  <button
-                    type="button"
-                    className="btn-remove"
-                    onClick={() => removeProject(index)}
-                  >
-                    Remove
-                  </button>
+        {view === 'auth' ? (
+          <div className="auth-view">
+            <div className="auth-card">
+              <div className="auth-header">
+                <h1>{authMode === 'login' ? 'Welcome Back' : 'Join Us'}</h1>
+                <p>{authMode === 'login' ? 'Sign in to continue creating' : 'Start building amazing portfolios'}</p>
+              </div>
+              
+              <form onSubmit={handleAuthSubmit} className="auth-form">
+                {authMode === 'signup' && (
+                  <div className="form-field">
+                    <label htmlFor="auth-name">
+                      <span className="field-icon">👤</span>
+                      Full Name
+                    </label>
+                    <input 
+                      id="auth-name" 
+                      name="name" 
+                      value={authData.name} 
+                      onChange={handleAuthChange} 
+                      placeholder="John Doe"
+                      className="field-input"
+                    />
+                  </div>
                 )}
-              </div>
-              <div className="form-group">
-                <label htmlFor={`project-title-${index}`}>Project Title *</label>
-                <input
-                  type="text"
-                  id={`project-title-${index}`}
-                  value={project.title}
-                  onChange={(e) => handleProjectChange(index, 'title', e.target.value)}
-                  placeholder="My Awesome Project"
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor={`project-desc-${index}`}>Description</label>
-                <textarea
-                  id={`project-desc-${index}`}
-                  value={project.description}
-                  onChange={(e) => handleProjectChange(index, 'description', e.target.value)}
-                  placeholder="Brief description of your project..."
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor={`project-link-${index}`}>Link (optional)</label>
-                <input
-                  type="url"
-                  id={`project-link-${index}`}
-                  value={project.link}
-                  onChange={(e) => handleProjectChange(index, 'link', e.target.value)}
-                  placeholder="https://github.com/username/project"
-                />
-              </div>
+                <div className="form-field">
+                  <label htmlFor="auth-email">
+                    <span className="field-icon">📧</span>
+                    Email
+                  </label>
+                  <input 
+                    id="auth-email" 
+                    name="email" 
+                    type="email"
+                    value={authData.email} 
+                    onChange={handleAuthChange} 
+                    placeholder="you@example.com"
+                    className="field-input"
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="auth-password">
+                    <span className="field-icon">🔒</span>
+                    Password
+                  </label>
+                  <input 
+                    id="auth-password" 
+                    name="password" 
+                    type="password" 
+                    value={authData.password} 
+                    onChange={handleAuthChange} 
+                    placeholder="••••••••"
+                    className="field-input"
+                  />
+                </div>
+                
+                <button type="submit" className="primary-btn">
+                  {authMode === 'login' ? '🚀 Sign In' : '✨ Create Account'}
+                </button>
+                
+                <div className="auth-switch">
+                  <span>{authMode === 'login' ? "Don't have an account? " : "Already registered? "}</span>
+                  <button 
+                    type="button" 
+                    className="text-link" 
+                    onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+                  >
+                    {authMode === 'login' ? 'Sign Up' : 'Sign In'}
+                  </button>
+                </div>
+              </form>
             </div>
-          ))}
-          <button type="button" className="btn-add" onClick={addProject}>
-            + Add Another Project
-          </button>
-        </div>
+          </div>
+        ) : (
+          <div className="generator-view">
+            <div className="hero-header">
+              <h1 className="hero-title">
+                Create Your <span className="gradient-text">Dream Portfolio</span>
+              </h1>
+              <p className="hero-description">
+                Powered by AI • Built in Minutes • Professional Results
+              </p>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="generator-form">
+              {/* Personal Info Section */}
+              <div className="form-section">
+                <div className="section-label">
+                  <span className="label-icon">👨‍💼</span>
+                  <h2>Personal Information</h2>
+                </div>
+                
+                <div className="fields-grid">
+                  <div className="form-field">
+                    <label htmlFor="name">Full Name *</label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="John Doe"
+                      className="field-input"
+                      required
+                    />
+                  </div>
 
-        <button type="submit" className="btn-generate" disabled={loading}>
-          {loading ? (
-            <div className="loading">
-              <div className="spinner"></div>
-              Generating your portfolio...
-            </div>
-          ) : (
-            '🚀 Generate My Portfolio'
-          )}
-        </button>
-      </form>
+                  <div className="form-field">
+                    <label htmlFor="role">Professional Title</label>
+                    <input
+                      type="text"
+                      id="role"
+                      name="role"
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      placeholder="Full Stack Developer"
+                      className="field-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="bio">About You</label>
+                  <textarea
+                    id="bio"
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    placeholder="Share your story, passion, and what makes you unique..."
+                    rows={4}
+                    className="field-input"
+                  />
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="skills">Skills & Technologies</label>
+                  <input
+                    type="text"
+                    id="skills"
+                    name="skills"
+                    value={formData.skills}
+                    onChange={handleInputChange}
+                    placeholder="React, Node.js, Python, AWS, Docker..."
+                    className="field-input"
+                  />
+                  <span className="field-hint">Separate skills with commas</span>
+                </div>
+              </div>
+
+              {/* Projects Section */}
+              <div className="form-section">
+                <div className="section-label">
+                  <div className="label-group">
+                    <span className="label-icon">💼</span>
+                    <h2>Your Projects</h2>
+                  </div>
+                  <button type="button" onClick={addProject} className="add-btn">
+                    <span>+</span> Add Project
+                  </button>
+                </div>
+                
+                <div className="projects-container">
+                  {formData.projects.map((project, index) => (
+                    <div key={index} className="project-item">
+                      <div className="project-header">
+                        <span className="project-badge">Project {index + 1}</span>
+                        {formData.projects.length > 1 && (
+                          <button
+                            type="button"
+                            className="delete-btn"
+                            onClick={() => removeProject(index)}
+                            title="Remove project"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                      
+                      <div className="form-field">
+                        <label htmlFor={`project-title-${index}`}>Project Title *</label>
+                        <input
+                          type="text"
+                          id={`project-title-${index}`}
+                          value={project.title}
+                          onChange={(e) => handleProjectChange(index, 'title', e.target.value)}
+                          placeholder="E-Commerce Platform"
+                          className="field-input"
+                          required
+                        />
+                      </div>
+                      
+                      <div className="form-field">
+                        <label htmlFor={`project-desc-${index}`}>Description</label>
+                        <textarea
+                          id={`project-desc-${index}`}
+                          value={project.description}
+                          onChange={(e) => handleProjectChange(index, 'description', e.target.value)}
+                          placeholder="What makes this project special..."
+                          rows={3}
+                          className="field-input"
+                        />
+                      </div>
+                      
+                      <div className="form-field">
+                        <label htmlFor={`project-link-${index}`}>Project URL</label>
+                        <input
+                          type="url"
+                          id={`project-link-${index}`}
+                          value={project.link}
+                          onChange={(e) => handleProjectChange(index, 'link', e.target.value)}
+                          placeholder="https://github.com/username/project"
+                          className="field-input"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <button type="submit" className="submit-btn" disabled={loading}>
+                {loading ? (
+                  <>
+                    <div className="btn-spinner"></div>
+                    <span>Generating Your Portfolio...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>✨ Generate My Portfolio</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
