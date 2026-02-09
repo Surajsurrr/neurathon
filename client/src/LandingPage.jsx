@@ -73,7 +73,7 @@ function LandingPage({ onGetStarted, onResumeUpload }) {
           Choose the method that works best for you - it's that simple!
         </p>
         <div className="methods-grid">
-          <div className="method-card">
+          <div className="method-card" onClick={onGetStarted} style={{ cursor: 'pointer' }}>
             <div className="method-number">01</div>
             <div className="method-icon">✍️</div>
             <h3>Enter Your Details</h3>
