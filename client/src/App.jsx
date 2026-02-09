@@ -22,6 +22,8 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [resumeData, setResumeData] = useState(null) // stores extracted resume data
+  const [resumeFlow, setResumeFlow] = useState(false) // true = show template picker only
 
   const templateCategories = {
     simple: [
@@ -169,22 +171,62 @@ function App() {
   }
 
   const handleResumeData = (extractedData) => {
-    // Populate form with extracted resume data
-    setFormData({
-      name: extractedData.name || '',
-      role: extractedData.role || '',
-      bio: extractedData.bio || extractedData.summary || '',
-      skills: extractedData.skills ? extractedData.skills.join(', ') : '',
-      email: extractedData.email || '',
-      github: extractedData.github || '',
-      linkedin: extractedData.linkedin || '',
-      projects: extractedData.projects && extractedData.projects.length > 0 
-        ? extractedData.projects 
-        : [{ title: '', description: '', link: '' }]
-    })
+    // Store resume data and enter template-only flow
+    setResumeData(extractedData)
+    setResumeFlow(true)
     setShowLanding(false)
-    setSuccess('✨ Resume parsed successfully! Review and edit the information below.')
+    setSuccess('✨ Resume parsed successfully! Now pick a template for your portfolio.')
     setTimeout(() => setSuccess(''), 4000)
+  }
+
+  const handleResumeGenerate = async () => {
+    if (!resumeData) return
+    setError('')
+    setLoading(true)
+
+    try {
+      const payload = {
+        name: resumeData.name || 'Portfolio',
+        role: resumeData.role || '',
+        bio: resumeData.bio || resumeData.summary || '',
+        skills: resumeData.skills ? resumeData.skills.join(', ') : '',
+        email: resumeData.email || '',
+        github: resumeData.github || '',
+        linkedin: resumeData.linkedin || '',
+        projects: resumeData.projects && resumeData.projects.length > 0
+          ? resumeData.projects
+          : [{ title: 'My Project', description: 'A project from my resume', link: '' }],
+        template: selectedTemplate
+      }
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) throw new Error('Generation failed')
+
+      const data = await response.json()
+
+      if (data.success && data.shareUrl) {
+        const newWindow = window.open(data.shareUrl, '_blank', 'noopener,noreferrer')
+        if (!newWindow) window.location.href = data.shareUrl
+
+        if (navigator.clipboard) {
+          try { await navigator.clipboard.writeText(data.shareUrl) } catch (e) {}
+        }
+        setSuccess('🎉 Portfolio generated! Link copied to clipboard.')
+        setTimeout(() => setSuccess(''), 5000)
+      } else {
+        throw new Error('Invalid response from server')
+      }
+    } catch (err) {
+      setError('Failed to generate portfolio. Please try again.')
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -425,6 +467,128 @@ function App() {
                 </div>
               </form>
             </div>
+          </div>
+        ) : resumeFlow ? (
+          /* ─── Resume Flow: Template Picker Only ─── */
+          <div className="generator-view resume-flow-view">
+            <div className="hero-header">
+              <h1 className="hero-title">
+                Pick a <span className="gradient-text">Template</span>
+              </h1>
+              <p className="hero-description">
+                Your resume has been parsed ✓ &nbsp;Now choose how your portfolio should look
+              </p>
+            </div>
+
+            {/* Extracted info summary */}
+            {resumeData && (
+              <div className="resume-summary-card">
+                <div className="resume-summary-header">
+                  <span className="resume-summary-icon">📋</span>
+                  <h3>Extracted from your resume</h3>
+                </div>
+                <div className="resume-summary-details">
+                  {resumeData.name && <div className="resume-tag"><span className="tag-label">Name:</span> {resumeData.name}</div>}
+                  {resumeData.role && <div className="resume-tag"><span className="tag-label">Role:</span> {resumeData.role}</div>}
+                  {resumeData.email && <div className="resume-tag"><span className="tag-label">Email:</span> {resumeData.email}</div>}
+                  {resumeData.skills && resumeData.skills.length > 0 && (
+                    <div className="resume-skills-row">
+                      <span className="tag-label">Skills:</span>
+                      <div className="resume-skill-chips">
+                        {resumeData.skills.slice(0, 10).map((skill, i) => (
+                          <span key={i} className="skill-chip">{skill}</span>
+                        ))}
+                        {resumeData.skills.length > 10 && <span className="skill-chip more">+{resumeData.skills.length - 10} more</span>}
+                      </div>
+                    </div>
+                  )}
+                  {resumeData.projects && resumeData.projects.length > 0 && (
+                    <div className="resume-tag"><span className="tag-label">Projects:</span> {resumeData.projects.length} found</div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Template Selection */}
+            <div className="form-section">
+              <div className="section-label">
+                <div className="label-group">
+                  <span className="label-icon">🎨</span>
+                  <h2>Choose Your Template Style</h2>
+                </div>
+              </div>
+              
+              <div className="category-tabs">
+                <button type="button" className={`category-tab ${selectedCategory === 'simple' ? 'active' : ''}`}
+                  onClick={() => { setSelectedCategory('simple'); setSelectedTemplate('simple'); }}>Simple</button>
+                <button type="button" className={`category-tab ${selectedCategory === 'modern' ? 'active' : ''}`}
+                  onClick={() => { setSelectedCategory('modern'); setSelectedTemplate('modern'); }}>Modern</button>
+                <button type="button" className={`category-tab ${selectedCategory === 'minimal' ? 'active' : ''}`}
+                  onClick={() => { setSelectedCategory('minimal'); setSelectedTemplate('minimal'); }}>Minimal</button>
+                <button type="button" className={`category-tab ${selectedCategory === 'creative' ? 'active' : ''}`}
+                  onClick={() => { setSelectedCategory('creative'); setSelectedTemplate('creative'); }}>Creative</button>
+              </div>
+
+              <div className="template-grid">
+                {templateCategories[selectedCategory].map((template) => (
+                  <div key={template.id}
+                    className={`template-card ${selectedTemplate === template.id ? 'active' : ''}`}
+                    onClick={() => setSelectedTemplate(template.id)}>
+                    <div className="template-preview">
+                      <div className={`preview-${selectedCategory}`}>
+                        {selectedCategory === 'simple' && (<><div className="prev-header"></div><div className="prev-content"><div className="prev-line"></div><div className="prev-line short"></div></div></>)}
+                        {selectedCategory === 'modern' && (<><div className="prev-nav"></div><div className="prev-hero"></div><div className="prev-grid"><div className="prev-box"></div><div className="prev-box"></div></div></>)}
+                        {selectedCategory === 'minimal' && (<><div className="prev-title"></div><div className="prev-text"><div className="prev-line"></div><div className="prev-line"></div><div className="prev-line short"></div></div></>)}
+                        {selectedCategory === 'creative' && (<><div className="prev-sidebar"></div><div className="prev-main"><div className="prev-section"></div><div className="prev-section"></div></div></>)}
+                      </div>
+                    </div>
+                    <div className="template-info">
+                      <h3>{template.name}</h3>
+                      <p>{template.desc}</p>
+                    </div>
+                    <div className="template-actions">
+                      <button type="button" className="preview-btn"
+                        onClick={(e) => { e.stopPropagation(); setPreviewTemplate(template); }}>
+                        👁️ Preview
+                      </button>
+                      {selectedTemplate === template.id && <div className="template-badge">✓ Selected</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Generate Button */}
+            <button className="submit-btn" onClick={handleResumeGenerate} disabled={loading}
+              style={{ marginTop: '2rem' }}>
+              {loading ? (
+                <><div className="btn-spinner"></div><span>Generating Your Portfolio...</span></>
+              ) : (
+                <span>🚀 Generate My Portfolio</span>
+              )}
+            </button>
+
+            <button className="text-link" style={{ marginTop: '1rem', display: 'block', textAlign: 'center', opacity: 0.7 }}
+              onClick={() => {
+                // Pre-fill the form with extracted resume data
+                setFormData({
+                  name: resumeData?.name || '',
+                  role: resumeData?.role || '',
+                  bio: resumeData?.bio || resumeData?.summary || '',
+                  skills: resumeData?.skills ? resumeData.skills.join(', ') : '',
+                  email: resumeData?.email || '',
+                  github: resumeData?.github || '',
+                  linkedin: resumeData?.linkedin || '',
+                  projects: resumeData?.projects && resumeData.projects.length > 0
+                    ? resumeData.projects
+                    : [{ title: '', description: '', link: '' }]
+                })
+                setResumeFlow(false)
+                setSuccess('📝 Resume data loaded into the form. Edit anything you like!')
+                setTimeout(() => setSuccess(''), 4000)
+              }}>
+              ✏️ Want to edit details manually instead?
+            </button>
           </div>
         ) : (
           <div className="generator-view">

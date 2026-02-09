@@ -158,17 +158,26 @@ app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
 
     // Parse based on file type
     if (req.file.mimetype === 'application/pdf') {
-      // PDF parsing
-      const pdfParse = require('pdf-parse');
+      // PDF parsing using pdf-parse
       const dataBuffer = await fs.readFile(filePath);
-      const data = await pdfParse(dataBuffer);
-      extractedText = data.text;
+      try {
+        const pdfParse = require('pdf-parse');
+        const data = await pdfParse(dataBuffer);
+        extractedText = (data && data.text) ? data.text : '';
+      } catch (pdfErr) {
+        console.error('pdf-parse failed:', pdfErr.message);
+        // Fallback: basic text extraction from PDF buffer
+        extractedText = dataBuffer.toString('utf8').replace(/[^\x20-\x7E\n\r]/g, ' ').replace(/\s+/g, ' ');
+      }
     } else {
       // DOC/DOCX parsing
       const mammoth = require('mammoth');
       const result = await mammoth.extractRawText({ path: filePath });
       extractedText = result.value;
     }
+
+    console.log('Extracted text length:', extractedText.length);
+    console.log('First 200 chars:', extractedText.substring(0, 200));
 
     // Clean up uploaded file
     await fs.unlink(filePath).catch(() => {});
@@ -244,14 +253,30 @@ async function extractResumeData(text) {
     if (data.role) break;
   }
 
-  // Extract skills (look for skills section)
+  // Extract skills (look for skills section or scan whole text)
   const skillsIndex = text.toLowerCase().indexOf('skills');
-  if (skillsIndex !== -1) {
-    const skillsSection = text.slice(skillsIndex, skillsIndex + 500);
-    const commonSkills = ['JavaScript', 'Python', 'Java', 'React', 'Node', 'HTML', 'CSS', 'SQL', 'MongoDB', 'AWS', 'Docker', 'Git', 'TypeScript', 'Angular', 'Vue'];
-    data.skills = commonSkills.filter(skill => 
-      skillsSection.toLowerCase().includes(skill.toLowerCase())
-    );
+  const skillsText = skillsIndex !== -1 ? text.slice(skillsIndex, skillsIndex + 800) : text;
+  const commonSkills = [
+    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'NodeJS', 'HTML', 'CSS', 'SQL',
+    'MongoDB', 'AWS', 'Docker', 'Git', 'TypeScript', 'Angular', 'Vue', 'Express',
+    'C++', 'C#', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Flutter', 'Django',
+    'Flask', 'Spring', 'Next.js', 'Tailwind', 'Bootstrap', 'Firebase', 'PostgreSQL',
+    'MySQL', 'Redis', 'GraphQL', 'REST', 'API', 'Linux', 'Azure', 'GCP', 'Kubernetes',
+    'Jenkins', 'CI/CD', 'Figma', 'Photoshop', 'Machine Learning', 'Deep Learning',
+    'TensorFlow', 'PyTorch', 'Data Science', 'NLP', 'Computer Vision', 'Pandas',
+    'NumPy', 'Scikit', 'Tableau', 'Power BI', 'Excel', 'MATLAB', 'R',
+    'Blockchain', 'Solidity', 'Web3', 'Agile', 'Scrum', 'JIRA'
+  ];
+  data.skills = commonSkills.filter(skill => 
+    skillsText.toLowerCase().includes(skill.toLowerCase())
+  );
+  // If no skills found from list, try to grab words near "skills" section
+  if (data.skills.length === 0 && skillsIndex !== -1) {
+    const rawSkills = text.slice(skillsIndex + 6, skillsIndex + 300)
+      .split(/[,\n•|]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 1 && s.length < 30);
+    data.skills = rawSkills.slice(0, 15);
   }
 
   // Extract summary/bio
