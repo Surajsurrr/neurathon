@@ -1,0 +1,10 @@
+{
+  "name": "Suraj Example",
+  "role": "AI Engineer",
+  "bio": "I build ML systems and AI-enabled web apps.",
+  "skills": "Python, JavaScript, React, Node.js, ML",
+  "projects": [
+    {"title": "Portfolio Generator", "description": "An AI-powered static-site generator.", "link": "https://example.com"},
+    {"title": "Vision Demo", "description": "Image classification project."}
+  ]
+}

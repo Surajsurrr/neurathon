@@ -1,0 +1,8 @@
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;margin:0;color:#222}
+.container{max-width:900px;margin:0 auto;padding:20px}
+.hero{background:#f5f6fa;padding:40px 0;text-align:center}
+.hero h1{margin:0;font-size:2.2rem}
+.role{color:#666}
+.projects{display:grid;grid-template-columns:1fr;gap:16px}
+.project{padding:12px;border:1px solid #eee;border-radius:6px}
+footer{padding:20px;text-align:center;color:#888}
