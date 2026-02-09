@@ -138,22 +138,21 @@ function App() {
 
       const data = await response.json()
       
-      if (data.success && data.portfolioUrl) {
-        // Open portfolio in new tab
-        window.open(data.portfolioUrl, '_blank')
+      if (data.success && data.shareUrl) {
+        // Open portfolio in new tab using full URL
+        const newWindow = window.open(data.shareUrl, '_blank', 'noopener,noreferrer')
         
-        // Show success message with share URL
-        setSuccess(`✨ Portfolio generated successfully! Opening in new tab...`)
+        if (!newWindow) {
+          // If popup was blocked, navigate directly
+          window.location.href = data.shareUrl
+        }
         
-        // Copy share URL to clipboard
-        if (navigator.clipboard && data.shareUrl) {
+        // Copy share URL to clipboard silently
+        if (navigator.clipboard) {
           try {
             await navigator.clipboard.writeText(data.shareUrl)
-            setTimeout(() => {
-              setSuccess(`✨ Portfolio created! Link copied to clipboard: ${data.shareUrl}`)
-            }, 500)
-          } catch (clipErr) {
-            setSuccess(`✨ Portfolio created! Share link: ${data.shareUrl}`)
+          } catch (e) {
+            console.log('Clipboard copy failed:', e)
           }
         }
       } else {

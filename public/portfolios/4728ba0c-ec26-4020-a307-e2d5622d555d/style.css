@@ -188,15 +188,10 @@ body::after {
 
 /* Main Content */
 .main-content {
-    /* position the main area to the right of the fixed sidebar and allow independent scrolling */
-    position: fixed;
-    top: 0;
-    left: 300px;
-    right: 0;
-    bottom: 0;
-    /* ensure content starts flush with the top of the main area */
-    padding: 0 5rem 3rem 5rem;
-    overflow: auto;
+    margin-left: 300px;
+    padding: 3rem 5rem;
+    min-height: 100vh;
+    position: relative;
     z-index: 1;
 }
 
@@ -207,8 +202,7 @@ body::after {
 }
 
 .section {
-    margin: 0 0 8rem 0;
-    padding: 0;
+    margin-bottom: 8rem;
     opacity: 0;
     animation: fadeInUp 0.8s forwards;
 }

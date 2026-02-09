@@ -138,15 +138,10 @@ body::before {
 
 /* Main Content */
 .main-content {
-    /* positioned to the right of the fixed sidebar */
-    position: fixed;
-    top: 0;
-    left: 280px;
-    right: 0;
-    bottom: 0;
-    /* ensure content starts flush with the top of the main area */
-    padding: 0 5rem 3rem 5rem;
-    overflow: auto;
+    margin-left: 280px;
+    padding: 3rem 5rem;
+    min-height: 100vh;
+    position: relative;
     z-index: 1;
 }
 
@@ -157,8 +152,7 @@ body::before {
 }
 
 .section {
-    margin: 0 0 8rem 0;
-    padding: 0;
+    margin-bottom: 8rem;
     opacity: 0;
     animation: fadeInUp 0.8s forwards;
 }

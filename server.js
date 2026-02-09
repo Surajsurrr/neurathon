@@ -107,10 +107,13 @@ app.post('/api/generate', async (req, res) => {
 
     // Render the selected template
     console.log(`Rendering template: ${templateName}`);
+    console.log(`Portfolio directory: ${portfolioDir}`);
     await renderTemplate(templateName, payload, portfolioDir);
+    console.log('Template rendered successfully');
 
     // Return the portfolio URL
     const portfolioUrl = `/portfolios/${id}/index.html`;
+    console.log(`Portfolio created at: ${portfolioUrl}`);
     res.json({ 
       success: true, 
       portfolioId: id,
@@ -119,7 +122,8 @@ app.post('/api/generate', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error('Generation error:', err);
+    console.error('Stack trace:', err.stack);
     res.status(500).json({ error: 'Generation failed', details: err.message });
   }
 });
