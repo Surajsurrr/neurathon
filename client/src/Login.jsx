@@ -57,7 +57,26 @@ export default function Login() {
     if (!email || !password) return setError('Please enter email and password')
     setTimeout(() => {
       setSuccess(isSignup ? 'Account created successfully!' : 'Logged in successfully!')
-      setTimeout(() => (window.location.href = '/'), 800)
+      setTimeout(() => {
+        try {
+          // Prefer returning to the previous page if available (landing or last-used page)
+          if (document.referrer && document.referrer.includes(window.location.host)) {
+            window.history.back()
+            return
+          }
+
+          // If there is history to go back to, use it
+          if (window.history.length > 1) {
+            window.history.back()
+            return
+          }
+
+          // Fallback: redirect to landing (root) with a flag
+          window.location.href = '/?showLanding=1'
+        } catch (e) {
+          window.location.href = '/'
+        }
+      }, 800)
     }, 600)
   }
 

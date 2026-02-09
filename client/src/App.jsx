@@ -53,6 +53,54 @@ function App() {
     }
   }, [view])
 
+  // Honor landing flag from URL (fallback target after auth)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('showLanding') === '1') {
+        setShowLanding(true)
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [])
+
+  // Manage history state for SPA view navigation so back/forward work without reload
+  useEffect(() => {
+    // When entering auth view, push a history entry so history.back() returns here
+    if (view === 'auth') {
+      try {
+        window.history.pushState({ view: 'auth' }, '', '?auth=1')
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      try {
+        // Replace state for generate view to keep history tidy
+        window.history.replaceState({ view: 'generate' }, '', window.location.pathname)
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [view])
+
+  useEffect(() => {
+    const onPop = (e) => {
+      const stateView = e.state && e.state.view
+      if (stateView) {
+        setView(stateView)
+        setShowLanding(stateView !== 'auth')
+      } else {
+        // No state (fresh pop) -> show landing as safe default
+        setView('generate')
+        setShowLanding(true)
+      }
+    }
+
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
   useEffect(() => {
     const cursor = document.querySelector('.custom-cursor')
     const cursorDot = document.querySelector('.custom-cursor-dot')
