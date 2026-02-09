@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import LandingPage from './LandingPage'
 
 function App() {
+  const [showLanding, setShowLanding] = useState(true)
   const [formData, setFormData] = useState({
     name: '',
     role: '',
@@ -43,6 +45,13 @@ function App() {
       { id: 'creative-neon', name: 'Neon', desc: 'Vibrant neon colors' }
     ]
   }
+
+  // Hide landing page when navigating to auth
+  useEffect(() => {
+    if (view === 'auth') {
+      setShowLanding(false)
+    }
+  }, [view])
 
   useEffect(() => {
     const cursor = document.querySelector('.custom-cursor')
@@ -185,17 +194,21 @@ function App() {
   }
 
   return (
-    <div className="portfolio-app">
-      {/* Custom Cursor */}
+    <>
+      {/* Custom Cursor - Always visible */}
       <div className="custom-cursor"></div>
       <div className="custom-cursor-dot"></div>
       
-      {/* Gradient Background */}
-      <div className="gradient-bg">
-        <div className="gradient-orb orb-1"></div>
-        <div className="gradient-orb orb-2"></div>
-        <div className="gradient-orb orb-3"></div>
-      </div>
+      {showLanding ? (
+        <LandingPage onGetStarted={() => setShowLanding(false)} />
+      ) : (
+        <div className="portfolio-app">
+          {/* Gradient Background */}
+          <div className="gradient-bg">
+            <div className="gradient-orb orb-1"></div>
+            <div className="gradient-orb orb-2"></div>
+            <div className="gradient-orb orb-3"></div>
+          </div>
 
       {/* Preview Modal */}
       {previewTemplate && (
@@ -680,7 +693,9 @@ function App() {
           </div>
         )}
       </div>
-    </div>
+        </div>
+      )}
+    </>
   )
 }
 
