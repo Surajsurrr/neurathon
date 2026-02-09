@@ -60,6 +60,13 @@ function extractGithubUsername(input) {
   let v = input.trim();
   // If user pasted a full URL, extract the last path segment
   try {
+    // handle cases like: '...github.com/...', even when pasted twice
+    if (v.includes('github.com')) {
+      const last = v.lastIndexOf('github.com');
+      const tail = v.slice(last + 'github.com'.length);
+      const parts = tail.split('/').filter(Boolean);
+      return parts[0] || '';
+    }
     if (v.startsWith('http')) {
       const u = new URL(v);
       const parts = u.pathname.split('/').filter(Boolean);
@@ -79,12 +86,18 @@ function extractLinkedInId(input) {
   if (!input) return '';
   let v = input.trim();
   try {
+    if (v.includes('linkedin.com')) {
+      const last = v.lastIndexOf('linkedin.com');
+      const tail = v.slice(last + 'linkedin.com'.length);
+      const parts = tail.split('/').filter(Boolean);
+      // handle /in/username or /pub/...
+      if (parts[0] === 'in' || parts[0] === 'pub') return parts[1] || '';
+      return parts[0] || '';
+    }
     if (v.startsWith('http')) {
       const u = new URL(v);
       const parts = u.pathname.split('/').filter(Boolean);
-      // LinkedIn profiles are usually under /in/ or /pub/
       if (parts[0] === 'in' || parts[0] === 'pub') return parts[1] || '';
-      // fallback to first segment
       return parts[0] || '';
     }
   } catch (e) {
@@ -138,9 +151,13 @@ app.post('/api/generate', async (req, res) => {
 
     const id = uuidv4();
     // Normalize social handles and build full URLs (do not perform remote HEAD checks)
+    console.log('Received payload.github:', payload.github);
+    console.log('Received payload.linkedin:', payload.linkedin);
+    
     try {
       const rawGh = payload.github || '';
       const gh = extractGithubUsername(rawGh);
+      console.log('Extracted GitHub username:', gh);
       if (gh) {
         payload.github = gh;
         payload.githubUrl = `https://github.com/${gh}`;
@@ -159,9 +176,11 @@ app.post('/api/generate', async (req, res) => {
         payload.github = '';
         payload.githubUrl = '';
       }
+      console.log('Final payload.githubUrl:', payload.githubUrl);
 
       const rawLi = payload.linkedin || '';
       const li = extractLinkedInId(rawLi);
+      console.log('Extracted LinkedIn ID:', li);
       if (li) {
         payload.linkedin = li;
         payload.linkedinUrl = `https://www.linkedin.com/in/${li}`;
@@ -178,6 +197,7 @@ app.post('/api/generate', async (req, res) => {
         payload.linkedin = '';
         payload.linkedinUrl = '';
       }
+      console.log('Final payload.linkedinUrl:', payload.linkedinUrl);
     } catch (e) {
       console.warn('Social normalization error:', e.message);
       payload.github = payload.github ? payload.github : '';
