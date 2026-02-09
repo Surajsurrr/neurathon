@@ -35,6 +35,17 @@ if (process.env.MONGODB_URI) {
   console.log('⚠ MongoDB disabled (set MONGODB_URI to enable persistence)');
 }
 
+// Register Handlebars helpers
+Handlebars.registerHelper('split', function(str, delimiter) {
+  if (!str) return [];
+  return str.split(delimiter).map(s => s.trim()).filter(Boolean);
+});
+
+Handlebars.registerHelper('substring', function(str, start, length) {
+  if (!str) return '';
+  return str.substring(start, start + length);
+});
+
 async function renderTemplate(templateName, data, outDir) {
   const tplPath = path.join(TEMPLATES_DIR, templateName, 'index.hbs');
   const cssPath = path.join(TEMPLATES_DIR, templateName, 'style.css');
@@ -55,6 +66,16 @@ app.post('/api/generate', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields: name, projects' });
     }
 
+    // Get template selection (default to 'simple')
+    const selectedTemplate = payload.template || 'simple';
+    const validTemplates = [
+      'simple', 'simple-gradient', 'simple-dark',
+      'modern', 'modern-glass', 'modern-cyber',
+      'minimal', 'minimal-serif', 'minimal-mono',
+      'creative', 'creative-bold', 'creative-neon'
+    ];
+    const templateName = validTemplates.includes(selectedTemplate) ? selectedTemplate : 'simple';
+
     const id = uuidv4();
     // Save basic profile to DB (non-blocking failure won't stop generation)
     try {
@@ -73,8 +94,9 @@ app.post('/api/generate', async (req, res) => {
     }
     const workDir = path.join(TMP_DIR, id);
 
-    // For MVP we render a simple template synchronously
-    await renderTemplate('simple', payload, workDir);
+    // Render the selected template
+    console.log(`Rendering template: ${templateName}`);
+    await renderTemplate(templateName, payload, workDir);
 
     // Stream a zip of the generated site back to the client
     res.setHeader('Content-Disposition', `attachment; filename="portfolio-${id}.zip"`);

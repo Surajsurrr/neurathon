@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{name}} | Creative Portfolio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Cursor Follower -->
+    <div class="cursor-dot"></div>
+    <div class="cursor-ring"></div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="profile">
+            <div class="avatar">{{substring name 0 1}}</div>
+            <h2>{{name}}</h2>
+            <p class="tagline">{{role}}</p>
+        </div>
+        <nav class="nav">
+            <a href="#about" class="nav-item">About</a>
+            <a href="#work" class="nav-item">Work</a>
+            <a href="#skills" class="nav-item">Skills</a>
+            <a href="#contact" class="nav-item">Contact</a>
+        </nav>
+        <div class="social">
+            {{#if github}}<a href="https://github.com/{{github}}" target="_blank">GH</a>{{/if}}
+            {{#if linkedin}}<a href="https://linkedin.com/in/{{linkedin}}" target="_blank">IN</a>{{/if}}
+            {{#if email}}<a href="mailto:{{email}}">EM</a>{{/if}}
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- About Section -->
+        <section id="about" class="section">
+            <div class="section-header">
+                <span class="section-number">01</span>
+                <h2>About Me</h2>
+            </div>
+            <div class="about-content">
+                <p class="lead">{{bio}}</p>
+            </div>
+        </section>
+
+        <!-- Work Section -->
+        <section id="work" class="section">
+            <div class="section-header">
+                <span class="section-number">02</span>
+                <h2>Selected Work</h2>
+            </div>
+            <div class="work-grid">
+                {{#each projects}}
+                <div class="work-item">
+                    <div class="work-number">0{{@index}}</div>
+                    <h3 class="work-title">{{this.title}}</h3>
+                    <p class="work-description">{{this.description}}</p>
+                    {{#if this.link}}
+                    <a href="{{this.link}}" class="work-link" target="_blank">
+                        Explore Project
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M4 10h12m-6-6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </a>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </section>
+
+        <!-- Skills Section -->
+        <section id="skills" class="section">
+            <div class="section-header">
+                <span class="section-number">03</span>
+                <h2>Expertise</h2>
+            </div>
+            <div class="skills-list">
+                {{#each (split skills ",")}}
+                <span class="skill-badge">{{this}}</span>
+                {{/each}}
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="section">
+            <div class="section-header">
+                <span class="section-number">04</span>
+                <h2>Let's Connect</h2>
+            </div>
+            <div class="contact-content">
+                <p class="contact-text">Interested in working together? Feel free to reach out!</p>
+                <div class="contact-methods">
+                    {{#if email}}<a href="mailto:{{email}}" class="contact-btn">Send Email</a>{{/if}}
+                    {{#if github}}<a href="https://github.com/{{github}}" class="contact-btn" target="_blank">View GitHub</a>{{/if}}
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>© 2026 {{name}} • Crafted with AI Portfolio Generator</p>
+        </footer>
+    </main>
+
+    <script>
+        // Custom cursor
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorRing = document.querySelector('.cursor-ring');
+        
+        let mouseX = 0, mouseY = 0;
+        let ringX = 0, ringY = 0;
+        
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            cursorDot.style.left = mouseX + 'px';
+            cursorDot.style.top = mouseY + 'px';
+        });
+        
+        function animate() {
+            ringX += (mouseX - ringX) * 0.15;
+            ringY += (mouseY - ringY) * 0.15;
+            cursorRing.style.left = ringX + 'px';
+            cursorRing.style.top = ringY + 'px';
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

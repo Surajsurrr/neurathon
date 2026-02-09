@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{name}} - Cyberpunk Portfolio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    
+    <nav class="navbar">
+        <div class="logo glitch" data-text="{{name}}">{{name}}</div>
+        <div class="nav-links">
+            <a href="#work">WORK</a>
+            <a href="#skills">SKILLS</a>
+            <a href="#contact">CONTACT</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <h1 class="neon-text">{{name}}</h1>
+            <p class="role-text">// {{role}}</p>
+            <p class="bio-text">{{bio}}</p>
+        </div>
+    </section>
+
+    <section id="work" class="projects-section">
+        <div class="container">
+            <h2 class="section-title">&lt;PROJECTS /&gt;</h2>
+            <div class="projects-grid">
+                {{#each projects}}
+                <div class="cyber-card">
+                    <div class="card-border"></div>
+                    <div class="card-content">
+                        <h3>{{this.title}}</h3>
+                        <p>{{this.description}}</p>
+                        {{#if this.link}}
+                        <a href="{{this.link}}" class="cyber-btn" target="_blank">
+                            <span>ACCESS</span>
+                        </a>
+                        {{/if}}
+                    </div>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+    </section>
+
+    <section id="skills" class="skills-section">
+        <div class="container">
+            <h2 class="section-title">&lt;SKILLS /&gt;</h2>
+            <div class="skills-matrix">
+                {{#each (split skills ",")}}
+                <div class="skill-chip">
+                    <span class="chip-text">{{this}}</span>
+                </div>
+                {{/each}}
+            </div>
+        </div>
+    </section>
+
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <h2 class="section-title">&lt;CONNECT /&gt;</h2>
+            <div class="contact-grid">
+                {{#if email}}
+                <div class="contact-item">
+                    <span class="contact-label">EMAIL://</span>
+                    <a href="mailto:{{email}}">{{email}}</a>
+                </div>
+                {{/if}}
+                {{#if github}}
+                <div class="contact-item">
+                    <span class="contact-label">GITHUB://</span>
+                    <a href="https://github.com/{{github}}" target="_blank">{{github}}</a>
+                </div>
+                {{/if}}
+                {{#if linkedin}}
+                <div class="contact-item">
+                    <span class="contact-label">LINKEDIN://</span>
+                    <a href="https://linkedin.com/in/{{linkedin}}" target="_blank">{{linkedin}}</a>
+                </div>
+                {{/if}}
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>SYSTEM.STATUS: ONLINE | POWERED BY AI</p>
+    </footer>
+</body>
+</html>

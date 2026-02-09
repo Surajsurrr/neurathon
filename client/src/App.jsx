@@ -6,14 +6,42 @@ function App() {
     role: '',
     bio: '',
     skills: '',
+    email: '',
+    github: '',
+    linkedin: '',
     projects: [{ title: '', description: '', link: '' }]
   })
+  const [selectedCategory, setSelectedCategory] = useState('simple')
+  const [selectedTemplate, setSelectedTemplate] = useState('simple')
   const [view, setView] = useState('generate') // 'generate' | 'auth'
   const [authMode, setAuthMode] = useState('login') // 'login' | 'signup'
   const [authData, setAuthData] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  const templateCategories = {
+    simple: [
+      { id: 'simple', name: 'Classic', desc: 'Clean & straightforward' },
+      { id: 'simple-gradient', name: 'Gradient', desc: 'Colorful gradients' },
+      { id: 'simple-dark', name: 'Dark Code', desc: 'Developer themed' }
+    ],
+    modern: [
+      { id: 'modern', name: 'Floating', desc: 'Animated orbs & glass' },
+      { id: 'modern-glass', name: 'Glass Pro', desc: 'Premium glassmorphism' },
+      { id: 'modern-cyber', name: 'Cyberpunk', desc: 'Neon & glitch effects' }
+    ],
+    minimal: [
+      { id: 'minimal', name: 'Simple', desc: 'Typography focused' },
+      { id: 'minimal-serif', name: 'Serif', desc: 'Elegant serif fonts' },
+      { id: 'minimal-mono', name: 'Monospace', desc: 'Code-style minimal' }
+    ],
+    creative: [
+      { id: 'creative', name: 'Sidebar', desc: 'Custom cursor & sidebar' },
+      { id: 'creative-bold', name: 'Bold', desc: 'Strong visual impact' },
+      { id: 'creative-neon', name: 'Neon', desc: 'Vibrant neon colors' }
+    ]
+  }
 
   useEffect(() => {
     const cursor = document.querySelector('.custom-cursor')
@@ -100,7 +128,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, template: selectedTemplate })
       })
 
       if (!response.ok) {
@@ -282,16 +310,122 @@ function App() {
             </div>
             
             <form onSubmit={handleSubmit} className="generator-form">
+              {/* Template Selection Section */}
+              <div className="form-section">
+                <div className="section-label">
+                  <div className="label-group">
+                    <span className="label-icon">🎨</span>
+                    <h2>Choose Your Template Style</h2>
+                  </div>
+                </div>
+                
+                {/* Category Tabs */}
+                <div className="category-tabs">
+                  <button
+                    type="button"
+                    className={`category-tab ${selectedCategory === 'simple' ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory('simple'); setSelectedTemplate('simple'); }}
+                  >
+                    Simple
+                  </button>
+                  <button
+                    type="button"
+                    className={`category-tab ${selectedCategory === 'modern' ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory('modern'); setSelectedTemplate('modern'); }}
+                  >
+                    Modern
+                  </button>
+                  <button
+                    type="button"
+                    className={`category-tab ${selectedCategory === 'minimal' ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory('minimal'); setSelectedTemplate('minimal'); }}
+                  >
+                    Minimal
+                  </button>
+                  <button
+                    type="button"
+                    className={`category-tab ${selectedCategory === 'creative' ? 'active' : ''}`}
+                    onClick={() => { setSelectedCategory('creative'); setSelectedTemplate('creative'); }}
+                  >
+                    Creative
+                  </button>
+                </div>
+
+                {/* Template Variations */}
+                <div className="template-grid">
+                  {templateCategories[selectedCategory].map((template) => (
+                    <div
+                      key={template.id}
+                      className={`template-card ${selectedTemplate === template.id ? 'active' : ''}`}
+                      onClick={() => setSelectedTemplate(template.id)}
+                    >
+                      <div className="template-preview">
+                        <div className={`preview-${selectedCategory}`}>
+                          {selectedCategory === 'simple' && (
+                            <>
+                              <div className="prev-header"></div>
+                              <div className="prev-content">
+                                <div className="prev-line"></div>
+                                <div className="prev-line short"></div>
+                              </div>
+                            </>
+                          )}
+                          {selectedCategory === 'modern' && (
+                            <>
+                              <div className="prev-nav"></div>
+                              <div className="prev-hero"></div>
+                              <div className="prev-grid">
+                                <div className="prev-box"></div>
+                                <div className="prev-box"></div>
+                              </div>
+                            </>
+                          )}
+                          {selectedCategory === 'minimal' && (
+                            <>
+                              <div className="prev-title"></div>
+                              <div className="prev-text">
+                                <div className="prev-line"></div>
+                                <div className="prev-line"></div>
+                                <div className="prev-line short"></div>
+                              </div>
+                            </>
+                          )}
+                          {selectedCategory === 'creative' && (
+                            <>
+                              <div className="prev-sidebar"></div>
+                              <div className="prev-main">
+                                <div className="prev-section"></div>
+                                <div className="prev-section"></div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="template-info">
+                        <h3>{template.name}</h3>
+                        <p>{template.desc}</p>
+                      </div>
+                      {selectedTemplate === template.id && <div className="template-badge">✓ Selected</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Personal Info Section */}
               <div className="form-section">
                 <div className="section-label">
-                  <span className="label-icon">👨‍💼</span>
-                  <h2>Personal Information</h2>
+                  <div className="label-group">
+                    <span className="label-icon">👨‍💼</span>
+                    <h2>Personal Information</h2>
+                  </div>
                 </div>
                 
                 <div className="fields-grid">
                   <div className="form-field">
-                    <label htmlFor="name">Full Name *</label>
+                    <label htmlFor="name">
+                      <span className="field-icon">📝</span>
+                      Full Name *
+                    </label>
                     <input
                       type="text"
                       id="name"
@@ -305,7 +439,10 @@ function App() {
                   </div>
 
                   <div className="form-field">
-                    <label htmlFor="role">Professional Title</label>
+                    <label htmlFor="role">
+                      <span className="field-icon">💼</span>
+                      Professional Title
+                    </label>
                     <input
                       type="text"
                       id="role"
@@ -316,10 +453,61 @@ function App() {
                       className="field-input"
                     />
                   </div>
+
+                  <div className="form-field">
+                    <label htmlFor="email">
+                      <span className="field-icon">📧</span>
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      placeholder="john@example.com"
+                      className="field-input"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="github">
+                      <span className="field-icon">💻</span>
+                      GitHub Username
+                    </label>
+                    <input
+                      type="text"
+                      id="github"
+                      name="github"
+                      value={formData.github}
+                      onChange={handleInputChange}
+                      placeholder="johndoe"
+                      className="field-input"
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="linkedin">
+                      <span className="field-icon">🔗</span>
+                      LinkedIn Username
+                    </label>
+                    <input
+                      type="text"
+                      id="linkedin"
+                      name="linkedin"
+                      value={formData.linkedin}
+                      onChange={handleInputChange}
+                      placeholder="johndoe"
+                      className="field-input"
+                    />
+                  </div>
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="bio">About You</label>
+                  <label htmlFor="bio">
+                    <span className="field-icon">✍️</span>
+                    About You
+                  </label>
                   <textarea
                     id="bio"
                     name="bio"
@@ -332,7 +520,10 @@ function App() {
                 </div>
 
                 <div className="form-field">
-                  <label htmlFor="skills">Skills & Technologies</label>
+                  <label htmlFor="skills">
+                    <span className="field-icon">⚡</span>
+                    Skills & Technologies
+                  </label>
                   <input
                     type="text"
                     id="skills"

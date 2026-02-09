@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{name}} - {{role}}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-brand">{{name}}</div>
+        <div class="nav-links">
+            <a href="#about">About</a>
+            <a href="#projects">Projects</a>
+            <a href="#skills">Skills</a>
+            <a href="#contact">Contact</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">{{name}}</h1>
+            <p class="hero-role">{{role}}</p>
+            <p class="hero-bio">{{bio}}</p>
+            <div class="hero-cta">
+                <a href="#projects" class="btn-primary">View Work</a>
+                <a href="#contact" class="btn-secondary">Get in Touch</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about">
+        <div class="container">
+            <h2 class="section-title">About Me</h2>
+            <p class="about-text">{{bio}}</p>
+        </div>
+    </section>
+
+    <!-- Projects Section -->
+    <section id="projects" class="projects">
+        <div class="container">
+            <h2 class="section-title">Featured Projects</h2>
+            <div class="projects-grid">
+                {{#each projects}}
+                <div class="project-card">
+                    <div class="project-header">
+                        <h3>{{this.title}}</h3>
+                    </div>
+                    <p class="project-description">{{this.description}}</p>
+                    {{#if this.link}}
+                    <a href="{{this.link}}" class="project-link" target="_blank">
+                        <span>View Project</span>
+                        <span class="arrow">→</span>
+                    </a>
+                    {{/if}}
+                </div>
+                {{/each}}
+            </div>
+        </div>
+    </section>
+
+    <!-- Skills Section -->
+    <section id="skills" class="skills">
+        <div class="container">
+            <h2 class="section-title">Skills & Technologies</h2>
+            <div class="skills-grid">
+                {{#each (split skills ",")}}
+                <div class="skill-tag">{{this}}</div>
+                {{/each}}
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <h2 class="section-title">Get In Touch</h2>
+            <p class="contact-text">Let's work together on your next project</p>
+            <div class="contact-info">
+                {{#if email}}<p>📧 {{email}}</p>{{/if}}
+                {{#if github}}<p>💻 <a href="https://github.com/{{github}}" target="_blank">GitHub</a></p>{{/if}}
+                {{#if linkedin}}<p>💼 <a href="https://linkedin.com/in/{{linkedin}}" target="_blank">LinkedIn</a></p>{{/if}}
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2026 {{name}}. Built with AI Portfolio Generator.</p>
+    </footer>
+</body>
+</html>

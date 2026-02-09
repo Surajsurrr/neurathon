@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{name}} — {{role}}</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="gradient-overlay"></div>
+  
+  <header class="hero">
+    <div class="container">
+      <h1>{{name}}</h1>
+      <p class="role">{{role}}</p>
+      <p class="bio">{{bio}}</p>
+      <div class="social-links">
+        {{#if email}}<a href="mailto:{{email}}" class="social-btn">Email</a>{{/if}}
+        {{#if github}}<a href="https://github.com/{{github}}" target="_blank" class="social-btn">GitHub</a>{{/if}}
+        {{#if linkedin}}<a href="https://linkedin.com/in/{{linkedin}}" target="_blank" class="social-btn">LinkedIn</a>{{/if}}
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h2>Projects</h2>
+      <div class="projects">
+        {{#each projects}}
+          <article class="project-card">
+            <h3>{{this.title}}</h3>
+            <p>{{this.description}}</p>
+            {{#if this.link}}<a href="{{this.link}}" class="project-link">View Project →</a>{{/if}}
+          </article>
+        {{/each}}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Skills</h2>
+      <div class="skills-container">
+        {{#each (split skills ",")}}
+          <span class="skill-badge">{{this}}</span>
+        {{/each}}
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>© 2026 {{name}} • Built with AI Portfolio Generator</p>
+  </footer>
+</body>
+</html>

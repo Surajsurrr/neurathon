@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{name}}</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>{{name}}</h1>
+            <p class="role">{{role}}</p>
+        </header>
+
+        <section class="bio">
+            <p>{{bio}}</p>
+        </section>
+
+        <section class="projects">
+            <h2>Work</h2>
+            {{#each projects}}
+            <div class="project">
+                <h3>{{this.title}}</h3>
+                <p>{{this.description}}</p>
+                {{#if this.link}}<a href="{{this.link}}" target="_blank">→ View</a>{{/if}}
+            </div>
+            {{/each}}
+        </section>
+
+        <section class="skills">
+            <h2>Skills</h2>
+            <p>{{skills}}</p>
+        </section>
+
+        <footer class="footer">
+            <div class="contact">
+                {{#if email}}<a href="mailto:{{email}}">Email</a>{{/if}}
+                {{#if github}}<a href="https://github.com/{{github}}" target="_blank">GitHub</a>{{/if}}
+                {{#if linkedin}}<a href="https://linkedin.com/in/{{linkedin}}" target="_blank">LinkedIn</a>{{/if}}
+            </div>
+            <p class="credit">Built with AI Portfolio Generator</p>
+        </footer>
+    </div>
+</body>
+</html>

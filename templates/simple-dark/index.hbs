@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{name}} — {{role}}</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1>{{name}}</h1>
+        <p class="role">{{role}}</p>
+        <p class="bio">{{bio}}</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="section">
+      <h2><span class="section-number">01.</span> Projects</h2>
+      <div class="projects">
+        {{#each projects}}
+          <article class="project-card">
+            <h3>{{this.title}}</h3>
+            <p>{{this.description}}</p>
+            {{#if this.link}}<a href="{{this.link}}" class="project-link">View Project ↗</a>{{/if}}
+          </article>
+        {{/each}}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="section-number">02.</span> Skills</h2>
+      <div class="skills-grid">
+        {{#each (split skills ",")}}
+          <div class="skill-item">→ {{this}}</div>
+        {{/each}}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2><span class="section-number">03.</span> Contact</h2>
+      <div class="contact-info">
+        {{#if email}}<p>📧 <a href="mailto:{{email}}">{{email}}</a></p>{{/if}}
+        {{#if github}}<p>💻 <a href="https://github.com/{{github}}" target="_blank">github.com/{{github}}</a></p>{{/if}}
+        {{#if linkedin}}<p>💼 <a href="https://linkedin.com/in/{{linkedin}}" target="_blank">linkedin.com/in/{{linkedin}}</a></p>{{/if}}
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Built with AI Portfolio Generator</p>
+  </footer>
+</body>
+</html>
