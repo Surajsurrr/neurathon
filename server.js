@@ -6,11 +6,26 @@ const Handlebars = require('handlebars');
 const archiver = require('archiver');
 const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
+const multer = require('multer');
 const Profile = require('./models/Profile');
 const sampleData = require('./sampleData');
 
 const app = express();
 app.use(express.json({ limit: '1mb' }));
+
+// Configure multer for file uploads
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF and DOC/DOCX allowed'));
+    }
+  }
+});
 
 // Enable CORS for development
 app.use((req, res, next) => {
@@ -129,6 +144,147 @@ async function renderTemplate(templateName, data, outDir) {
   await fs.ensureDir(outDir);
   await fs.writeFile(path.join(outDir, 'index.html'), html, 'utf8');
   await fs.writeFile(path.join(outDir, 'style.css'), cssSrc, 'utf8');
+}
+
+// Resume parsing endpoint
+app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+
+    const filePath = req.file.path;
+    let extractedText = '';
+
+    // Parse based on file type
+    if (req.file.mimetype === 'application/pdf') {
+      // PDF parsing
+      const pdfParse = require('pdf-parse');
+      const dataBuffer = await fs.readFile(filePath);
+      const data = await pdfParse(dataBuffer);
+      extractedText = data.text;
+    } else {
+      // DOC/DOCX parsing
+      const mammoth = require('mammoth');
+      const result = await mammoth.extractRawText({ path: filePath });
+      extractedText = result.value;
+    }
+
+    // Clean up uploaded file
+    await fs.unlink(filePath).catch(() => {});
+
+    // Extract information using AI or regex patterns
+    const extractedData = await extractResumeData(extractedText);
+
+    res.json({
+      success: true,
+      extractedData
+    });
+  } catch (error) {
+    console.error('Resume parsing error:', error);
+    // Clean up file on error
+    if (req.file) {
+      await fs.unlink(req.file.path).catch(() => {});
+    }
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to parse resume. Please try again or enter details manually.' 
+    });
+  }
+});
+
+// AI-powered resume data extraction
+async function extractResumeData(text) {
+  // Basic regex-based extraction (can be enhanced with OpenAI API)
+  const data = {
+    name: '',
+    role: '',
+    bio: '',
+    summary: '',
+    email: '',
+    phone: '',
+    github: '',
+    linkedin: '',
+    skills: [],
+    projects: []
+  };
+
+  // Extract email
+  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
+  if (emailMatch) data.email = emailMatch[0];
+
+  // Extract phone
+  const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+  if (phoneMatch) data.phone = phoneMatch[0];
+
+  // Extract LinkedIn
+  const linkedinMatch = text.match(/linkedin\.com\/in\/([\w-]+)/i);
+  if (linkedinMatch) data.linkedin = linkedinMatch[1];
+
+  // Extract GitHub
+  const githubMatch = text.match(/github\.com\/([\w-]+)/i);
+  if (githubMatch) data.github = githubMatch[1];
+
+  // Extract name (usually first line or near top)
+  const lines = text.split('\n').filter(l => l.trim());
+  if (lines.length > 0) {
+    // First non-empty line is likely the name
+    data.name = lines[0].trim().replace(/[^\w\s]/g, '').slice(0, 50);
+  }
+
+  // Extract role/title (common keywords)
+  const roleKeywords = ['Developer', 'Engineer', 'Designer', 'Manager', 'Analyst', 'Architect', 'Consultant'];
+  for (const line of lines.slice(0, 5)) {
+    for (const keyword of roleKeywords) {
+      if (line.includes(keyword)) {
+        data.role = line.trim().slice(0, 100);
+        break;
+      }
+    }
+    if (data.role) break;
+  }
+
+  // Extract skills (look for skills section)
+  const skillsIndex = text.toLowerCase().indexOf('skills');
+  if (skillsIndex !== -1) {
+    const skillsSection = text.slice(skillsIndex, skillsIndex + 500);
+    const commonSkills = ['JavaScript', 'Python', 'Java', 'React', 'Node', 'HTML', 'CSS', 'SQL', 'MongoDB', 'AWS', 'Docker', 'Git', 'TypeScript', 'Angular', 'Vue'];
+    data.skills = commonSkills.filter(skill => 
+      skillsSection.toLowerCase().includes(skill.toLowerCase())
+    );
+  }
+
+  // Extract summary/bio
+  const summaryKeywords = ['summary', 'about', 'profile', 'objective'];
+  for (const keyword of summaryKeywords) {
+    const idx = text.toLowerCase().indexOf(keyword);
+    if (idx !== -1) {
+      const section = text.slice(idx, idx + 400);
+      const sentences = section.split(/[.\n]/).slice(1, 3);
+      data.summary = sentences.join('. ').trim().slice(0, 300);
+      data.bio = data.summary;
+      break;
+    }
+  }
+
+  // Extract projects (look for project section)
+  const projectsIndex = text.toLowerCase().indexOf('project');
+  if (projectsIndex !== -1) {
+    const projectsSection = text.slice(projectsIndex, projectsIndex + 1000);
+    const projectLines = projectsSection.split('\n').filter(l => l.trim() && l.length > 10);
+    
+    for (let i = 0; i < Math.min(3, projectLines.length); i += 2) {
+      if (projectLines[i]) {
+        data.projects.push({
+          title: projectLines[i].trim().slice(0, 100),
+          description: projectLines[i + 1] ? projectLines[i + 1].trim().slice(0, 200) : '',
+          link: ''
+        });
+      }
+    }
+  }
+
+  return data;
 }
 
 app.post('/api/generate', async (req, res) => {

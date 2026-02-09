@@ -168,6 +168,25 @@ function App() {
     }
   }
 
+  const handleResumeData = (extractedData) => {
+    // Populate form with extracted resume data
+    setFormData({
+      name: extractedData.name || '',
+      role: extractedData.role || '',
+      bio: extractedData.bio || extractedData.summary || '',
+      skills: extractedData.skills ? extractedData.skills.join(', ') : '',
+      email: extractedData.email || '',
+      github: extractedData.github || '',
+      linkedin: extractedData.linkedin || '',
+      projects: extractedData.projects && extractedData.projects.length > 0 
+        ? extractedData.projects 
+        : [{ title: '', description: '', link: '' }]
+    })
+    setShowLanding(false)
+    setSuccess('✨ Resume parsed successfully! Review and edit the information below.')
+    setTimeout(() => setSuccess(''), 4000)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -248,7 +267,10 @@ function App() {
       <div className="custom-cursor-dot"></div>
       
       {showLanding ? (
-        <LandingPage onGetStarted={() => setShowLanding(false)} />
+        <LandingPage 
+          onGetStarted={() => setShowLanding(false)} 
+          onResumeUpload={handleResumeData}
+        />
       ) : (
         <div className="portfolio-app">
           {/* Gradient Background */}
