@@ -4,6 +4,10 @@
     box-sizing: border-box;
 }
 
+html {
+    scroll-behavior: smooth;
+}
+
 body {
     font-family: 'Impact', 'Arial Black', -apple-system, sans-serif;
     background: #000000;
@@ -134,11 +138,17 @@ body::before {
 
 /* Main Content */
 .main-content {
-    margin-left: 250px;
-    padding: 4rem 6rem;
+    margin-left: 280px;
+    padding: 3rem 5rem;
     min-height: 100vh;
     position: relative;
     z-index: 1;
+}
+
+/* Hide cursor elements if they exist */
+.cursor-dot,
+.cursor-ring {
+    display: none;
 }
 
 .section {
