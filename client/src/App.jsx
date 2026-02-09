@@ -136,17 +136,29 @@ function App() {
         throw new Error('Generation failed')
       }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `portfolio-${formData.name.replace(/\s+/g, '-').toLowerCase()}.zip`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      setSuccess('✨ Portfolio generated successfully! Download started.')
+      const data = await response.json()
+      
+      if (data.success && data.portfolioUrl) {
+        // Open portfolio in new tab
+        window.open(data.portfolioUrl, '_blank')
+        
+        // Show success message with share URL
+        setSuccess(`✨ Portfolio generated successfully! Opening in new tab...`)
+        
+        // Copy share URL to clipboard
+        if (navigator.clipboard && data.shareUrl) {
+          try {
+            await navigator.clipboard.writeText(data.shareUrl)
+            setTimeout(() => {
+              setSuccess(`✨ Portfolio created! Link copied to clipboard: ${data.shareUrl}`)
+            }, 500)
+          } catch (clipErr) {
+            setSuccess(`✨ Portfolio created! Share link: ${data.shareUrl}`)
+          }
+        }
+      } else {
+        throw new Error('Invalid response from server')
+      }
     } catch (err) {
       setError('Failed to generate portfolio. Please try again.')
       console.error(err)
@@ -657,11 +669,11 @@ function App() {
                 {loading ? (
                   <>
                     <div className="btn-spinner"></div>
-                    <span>Generating Your Portfolio...</span>
+                    <span>Creating Your Portfolio...</span>
                   </>
                 ) : (
                   <>
-                    <span>✨ Generate My Portfolio</span>
+                    <span>🚀 Create & View Portfolio</span>
                   </>
                 )}
               </button>

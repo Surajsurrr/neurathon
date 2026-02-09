@@ -25,6 +25,13 @@ app.use((req, res, next) => {
 
 const TEMPLATES_DIR = path.join(__dirname, 'templates');
 const TMP_DIR = path.join(__dirname, 'tmp');
+const PORTFOLIOS_DIR = path.join(__dirname, 'public', 'portfolios');
+
+// Ensure portfolios directory exists
+fs.ensureDirSync(PORTFOLIOS_DIR);
+
+// Serve static portfolios
+app.use('/portfolios', express.static(PORTFOLIOS_DIR));
 
 // Connect to MongoDB (optional for MVP)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ai-portfolio';
@@ -85,7 +92,8 @@ app.post('/api/generate', async (req, res) => {
         role: payload.role,
         bio: payload.bio,
         skills: Array.isArray(payload.skills) ? payload.skills : (payload.skills ? payload.skills.split(/[,;]\s*/) : []),
-        projects: payload.projects || []
+        projects: payload.projects || [],
+        portfolioId: id
       };
       const profile = new Profile(profileData);
       await profile.save();
@@ -93,27 +101,23 @@ app.post('/api/generate', async (req, res) => {
     } catch (e) {
       console.warn('Failed to save profile to DB:', e.message);
     }
-    const workDir = path.join(TMP_DIR, id);
+
+    // Create portfolio directory
+    const portfolioDir = path.join(PORTFOLIOS_DIR, id);
 
     // Render the selected template
     console.log(`Rendering template: ${templateName}`);
-    await renderTemplate(templateName, payload, workDir);
+    await renderTemplate(templateName, payload, portfolioDir);
 
-    // Stream a zip of the generated site back to the client
-    res.setHeader('Content-Disposition', `attachment; filename="portfolio-${id}.zip"`);
-    res.setHeader('Content-Type', 'application/zip');
-
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    archive.on('error', err => { throw err; });
-
-    archive.pipe(res);
-    archive.directory(workDir, false);
-    await archive.finalize();
-
-    // cleanup after response finished
-    res.on('finish', async () => {
-      try { await fs.remove(workDir); } catch (e) { /* ignore */ }
+    // Return the portfolio URL
+    const portfolioUrl = `/portfolios/${id}/index.html`;
+    res.json({ 
+      success: true, 
+      portfolioId: id,
+      portfolioUrl: portfolioUrl,
+      shareUrl: `${req.protocol}://${req.get('host')}${portfolioUrl}`
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Generation failed', details: err.message });
