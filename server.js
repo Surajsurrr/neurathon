@@ -54,6 +54,58 @@ Handlebars.registerHelper('substring', function(str, start, length) {
   return str.substring(start, start + length);
 });
 
+// Normalize and validate social handles
+function extractGithubUsername(input) {
+  if (!input) return '';
+  let v = input.trim();
+  // If user pasted a full URL, extract the last path segment
+  try {
+    if (v.startsWith('http')) {
+      const u = new URL(v);
+      const parts = u.pathname.split('/').filter(Boolean);
+      return parts[0] || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+  // Remove leading @ if present
+  v = v.replace(/^@+/, '');
+  // Only allow simple username characters
+  if (/^[a-zA-Z0-9-]+$/.test(v)) return v;
+  return '';
+}
+
+function extractLinkedInId(input) {
+  if (!input) return '';
+  let v = input.trim();
+  try {
+    if (v.startsWith('http')) {
+      const u = new URL(v);
+      const parts = u.pathname.split('/').filter(Boolean);
+      // LinkedIn profiles are usually under /in/ or /pub/
+      if (parts[0] === 'in' || parts[0] === 'pub') return parts[1] || '';
+      // fallback to first segment
+      return parts[0] || '';
+    }
+  } catch (e) {
+    // ignore
+  }
+  // If user provided the full handle like 'in/username' or just 'username'
+  v = v.replace(/^in\//, '').replace(/^@+/, '');
+  // Allow common linkedin id chars (letters, numbers, hyphen)
+  if (/^[a-zA-Z0-9-]+$/.test(v)) return v;
+  return '';
+}
+
+async function urlExists(url) {
+  try {
+    const res = await fetch(url, { method: 'HEAD' });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function renderTemplate(templateName, data, outDir) {
   const tplPath = path.join(TEMPLATES_DIR, templateName, 'index.hbs');
   const cssPath = path.join(TEMPLATES_DIR, templateName, 'style.css');
@@ -85,6 +137,57 @@ app.post('/api/generate', async (req, res) => {
     const templateName = validTemplates.includes(selectedTemplate) ? selectedTemplate : 'simple';
 
     const id = uuidv4();
+    // Normalize social handles and build full URLs (do not perform remote HEAD checks)
+    try {
+      const rawGh = payload.github || '';
+      const gh = extractGithubUsername(rawGh);
+      if (gh) {
+        payload.github = gh;
+        payload.githubUrl = `https://github.com/${gh}`;
+      } else if (rawGh && rawGh.startsWith('http')) {
+        // try to use provided URL (clean double prefixes)
+        try {
+          const u = new URL(rawGh);
+          // remove trailing slash
+          payload.github = '';
+          payload.githubUrl = u.href.replace(/\/$/, '');
+        } catch (e) {
+          payload.github = '';
+          payload.githubUrl = '';
+        }
+      } else {
+        payload.github = '';
+        payload.githubUrl = '';
+      }
+
+      const rawLi = payload.linkedin || '';
+      const li = extractLinkedInId(rawLi);
+      if (li) {
+        payload.linkedin = li;
+        payload.linkedinUrl = `https://www.linkedin.com/in/${li}`;
+      } else if (rawLi && rawLi.startsWith('http')) {
+        try {
+          const u2 = new URL(rawLi);
+          payload.linkedin = '';
+          payload.linkedinUrl = u2.href.replace(/\/$/, '');
+        } catch (e) {
+          payload.linkedin = '';
+          payload.linkedinUrl = '';
+        }
+      } else {
+        payload.linkedin = '';
+        payload.linkedinUrl = '';
+      }
+    } catch (e) {
+      console.warn('Social normalization error:', e.message);
+      payload.github = payload.github ? payload.github : '';
+      payload.linkedin = payload.linkedin ? payload.linkedin : '';
+      payload.githubUrl = payload.githubUrl || '';
+      payload.linkedinUrl = payload.linkedinUrl || '';
+    }
+    // Provide fully-qualified URLs to templates to avoid double-prefix issues
+    payload.githubUrl = payload.github ? `https://github.com/${payload.github}` : '';
+    payload.linkedinUrl = payload.linkedin ? `https://www.linkedin.com/in/${payload.linkedin}` : '';
     // Save basic profile to DB (non-blocking failure won't stop generation)
     try {
       const profileData = {

@@ -25,8 +25,8 @@
             <a href="#contact" class="nav-item">Contact</a>
         </nav>
         <div class="social">
-            {{#if github}}<a href="https://github.com/{{github}}" target="_blank">GH</a>{{/if}}
-            {{#if linkedin}}<a href="https://linkedin.com/in/{{linkedin}}" target="_blank">IN</a>{{/if}}
+            {{#if githubUrl}}<a href="{{githubUrl}}" target="_blank">GH</a>{{/if}}
+            {{#if linkedinUrl}}<a href="{{linkedinUrl}}" target="_blank">IN</a>{{/if}}
             {{#if email}}<a href="mailto:{{email}}">EM</a>{{/if}}
         </div>
     </aside>
@@ -92,7 +92,7 @@
                 <p class="contact-text">Interested in working together? Feel free to reach out!</p>
                 <div class="contact-methods">
                     {{#if email}}<a href="mailto:{{email}}" class="contact-btn">Send Email</a>{{/if}}
-                    {{#if github}}<a href="https://github.com/{{github}}" class="contact-btn" target="_blank">View GitHub</a>{{/if}}
+                    {{#if githubUrl}}<a href="{{githubUrl}}" class="contact-btn" target="_blank">View GitHub</a>{{/if}}
                 </div>
             </div>
         </section>

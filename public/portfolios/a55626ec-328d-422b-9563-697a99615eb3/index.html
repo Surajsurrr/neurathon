@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{name}} | Creative Portfolio</title>
+    <title>SURAJ S | Creative Portfolio</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,9 +14,9 @@
     <!-- Sidebar -->
     <aside class="sidebar">
         <div class="profile">
-            <div class="avatar">{{substring name 0 1}}</div>
-            <h2>{{name}}</h2>
-            <p class="tagline">{{role}}</p>
+            <div class="avatar">S</div>
+            <h2>SURAJ S</h2>
+            <p class="tagline">AI ENGINEER</p>
         </div>
         <nav class="nav">
             <a href="#about" class="nav-item">About</a>
@@ -25,9 +25,9 @@
             <a href="#contact" class="nav-item">Contact</a>
         </nav>
         <div class="social">
-            {{#if githubUrl}}<a href="{{githubUrl}}" target="_blank">GH</a>{{/if}}
-            {{#if linkedinUrl}}<a href="{{linkedinUrl}}" target="_blank">IN</a>{{/if}}
-            {{#if email}}<a href="mailto:{{email}}">EM</a>{{/if}}
+            
+            
+            <a href="mailto:surajsurrr1802@gmail.com">EM</a>
         </div>
     </aside>
 
@@ -40,7 +40,7 @@
                 <h2>About Me</h2>
             </div>
             <div class="about-content">
-                <p class="lead">{{bio}}</p>
+                <p class="lead">nothing</p>
             </div>
         </section>
 
@@ -51,21 +51,17 @@
                 <h2>Selected Work</h2>
             </div>
             <div class="work-grid">
-                {{#each projects}}
                 <div class="work-item">
-                    <div class="work-number">0{{@index}}</div>
-                    <h3 class="work-title">{{this.title}}</h3>
-                    <p class="work-description">{{this.description}}</p>
-                    {{#if this.link}}
-                    <a href="{{this.link}}" class="work-link" target="_blank">
+                    <div class="work-number">00</div>
+                    <h3 class="work-title">IoT</h3>
+                    <p class="work-description">nothing</p>
+                    <a href="https://github/Surajsurrr/" class="work-link" target="_blank">
                         Explore Project
                         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                             <path d="M4 10h12m-6-6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                         </svg>
                     </a>
-                    {{/if}}
                 </div>
-                {{/each}}
             </div>
         </section>
 
@@ -76,9 +72,10 @@
                 <h2>Expertise</h2>
             </div>
             <div class="skills-list">
-                {{#each (split skills ",")}}
-                <span class="skill-badge">{{this}}</span>
-                {{/each}}
+                <span class="skill-badge">Python</span>
+                <span class="skill-badge">C</span>
+                <span class="skill-badge">C++</span>
+                <span class="skill-badge">Java</span>
             </div>
         </section>
 
@@ -91,14 +88,14 @@
             <div class="contact-content">
                 <p class="contact-text">Interested in working together? Feel free to reach out!</p>
                 <div class="contact-methods">
-                    {{#if email}}<a href="mailto:{{email}}" class="contact-btn">Send Email</a>{{/if}}
-                    {{#if githubUrl}}<a href="{{githubUrl}}" class="contact-btn" target="_blank">View GitHub</a>{{/if}}
+                    <a href="mailto:surajsurrr1802@gmail.com" class="contact-btn">Send Email</a>
+                    
                 </div>
             </div>
         </section>
 
         <footer class="footer">
-            <p>© 2026 {{name}} • Crafted with AI Portfolio Generator</p>
+            <p>© 2026 SURAJ S • Crafted with AI Portfolio Generator</p>
         </footer>
     </main>
 
