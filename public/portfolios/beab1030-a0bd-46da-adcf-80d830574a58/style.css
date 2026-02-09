@@ -1,0 +1,314 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', 'Consolas', monospace;
+    background: #000;
+    color: #0ff;
+    overflow-x: hidden;
+}
+
+.cyber-grid {
+    position: fixed;
+    inset: 0;
+    background-image: 
+        linear-gradient(rgba(0, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 50px 50px;
+    z-index: -1;
+    animation: gridMove 20s linear infinite;
+}
+
+@keyframes gridMove {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(50px, 50px); }
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+    border-bottom: 2px solid #0ff;
+    background: rgba(0, 0, 0, 0.9);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0ff;
+    text-shadow: 0 0 10px #0ff;
+}
+
+.glitch {
+    position: relative;
+}
+
+.glitch::before {
+    content: attr(data-text);
+    position: absolute;
+    left: 2px;
+    text-shadow: -2px 0 #f0f;
+    animation: glitch-1 2s infinite linear alternate-reverse;
+}
+
+.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: -2px;
+    text-shadow: -2px 0 #0ff;
+    animation: glitch-2 3s infinite linear alternate-reverse;
+}
+
+@keyframes glitch-1 {
+    0% { clip-path: inset(40% 0 61% 0); }
+    20% { clip-path: inset(92% 0 1% 0); }
+    40% { clip-path: inset(43% 0 1% 0); }
+    60% { clip-path: inset(25% 0 58% 0); }
+    80% { clip-path: inset(54% 0 7% 0); }
+    100% { clip-path: inset(58% 0 43% 0); }
+}
+
+@keyframes glitch-2 {
+    0% { clip-path: inset(65% 0 10% 0); }
+    20% { clip-path: inset(20% 0 60% 0); }
+    40% { clip-path: inset(80% 0 5% 0); }
+    60% { clip-path: inset(10% 0 80% 0); }
+    80% { clip-path: inset(50% 0 30% 0); }
+    100% { clip-path: inset(30% 0 50% 0); }
+}
+
+.nav-links {
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-links a {
+    color: #0ff;
+    text-decoration: none;
+    font-weight: 700;
+    transition: all 0.3s;
+    border: 1px solid transparent;
+    padding: 0.5rem 1rem;
+}
+
+.nav-links a:hover {
+    border: 1px solid #0ff;
+    box-shadow: 0 0 20px #0ff;
+}
+
+.hero {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    text-align: center;
+}
+
+.neon-text {
+    font-size: 5rem;
+    color: #0ff;
+    text-shadow: 
+        0 0 10px #0ff,
+        0 0 20px #0ff,
+        0 0 40px #0ff,
+        0 0 80px #0ff;
+    margin-bottom: 1rem;
+    animation: flicker 3s infinite;
+}
+
+@keyframes flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 
+            0 0 10px #0ff,
+            0 0 20px #0ff,
+            0 0 40px #0ff,
+            0 0 80px #0ff;
+    }
+    20%, 24%, 55% {
+        text-shadow: none;
+    }
+}
+
+.role-text {
+    font-size: 1.5rem;
+    color: #f0f;
+    margin-bottom: 2rem;
+}
+
+.bio-text {
+    font-size: 1.1rem;
+    color: #0ff;
+    max-width: 700px;
+    margin: 0 auto;
+    opacity: 0.8;
+}
+
+.projects-section,
+.skills-section,
+.contact-section {
+    padding: 6rem 0;
+    border-top: 1px solid #0ff;
+}
+
+.section-title {
+    font-size: 2.5rem;
+    color: #0ff;
+    margin-bottom: 3rem;
+    text-align: center;
+    text-shadow: 0 0 20px #0ff;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+}
+
+.cyber-card {
+    position: relative;
+    background: rgba(0, 255, 255, 0.05);
+    border: 2px solid #0ff;
+    padding: 2rem;
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+    transition: all 0.3s;
+}
+
+.cyber-card:hover {
+    box-shadow: 0 0 30px #0ff;
+    transform: translateY(-10px);
+}
+
+.card-border {
+    position: absolute;
+    inset: 0;
+    border: 1px solid #f0f;
+    clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+    animation: borderPulse 2s infinite;
+}
+
+@keyframes borderPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.card-content h3 {
+    color: #f0f;
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+}
+
+.card-content p {
+    color: #0ff;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+    opacity: 0.8;
+}
+
+.cyber-btn {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    background: transparent;
+    border: 2px solid #0ff;
+    color: #0ff;
+    text-decoration: none;
+    font-weight: 700;
+    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    transition: all 0.3s;
+}
+
+.cyber-btn:hover {
+    background: #0ff;
+    color: #000;
+    box-shadow: 0 0 20px #0ff;
+}
+
+.skills-matrix {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.skill-chip {
+    background: rgba(255, 0, 255, 0.1);
+    border: 1px solid #f0f;
+    padding: 0.75rem 1.5rem;
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+    transition: all 0.3s;
+}
+
+.skill-chip:hover {
+    background: rgba(255, 0, 255, 0.3);
+    box-shadow: 0 0 15px #f0f;
+}
+
+.chip-text {
+    color: #f0f;
+    font-weight: 700;
+}
+
+.contact-grid {
+    display: grid;
+    gap: 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: rgba(0, 255, 255, 0.05);
+    border-left: 3px solid #0ff;
+}
+
+.contact-label {
+    color: #f0f;
+    font-weight: 700;
+}
+
+.contact-item a {
+    color: #0ff;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.contact-item a:hover {
+    text-shadow: 0 0 10px #0ff;
+}
+
+.footer {
+    text-align: center;
+    padding: 2rem;
+    border-top: 2px solid #0ff;
+    color: #0ff;
+    opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+    .neon-text {
+        font-size: 3rem;
+    }
+
+    .projects-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        gap: 1rem;
+    }
+}

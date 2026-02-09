@@ -202,9 +202,8 @@ app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
   }
 });
 
-// AI-powered resume data extraction
+// AI-powered resume data extraction (improved accuracy)
 async function extractResumeData(text) {
-  // Basic regex-based extraction (can be enhanced with OpenAI API)
   const data = {
     name: '',
     role: '',
@@ -218,95 +217,378 @@ async function extractResumeData(text) {
     projects: []
   };
 
-  // Extract email
-  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.\w+/);
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  // ─── Extract email ───
+  const emailMatch = text.match(/[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/);
   if (emailMatch) data.email = emailMatch[0];
 
-  // Extract phone
+  // ─── Extract phone ───
   const phoneMatch = text.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
   if (phoneMatch) data.phone = phoneMatch[0];
 
-  // Extract LinkedIn
+  // ─── Extract LinkedIn ───
   const linkedinMatch = text.match(/linkedin\.com\/in\/([\w-]+)/i);
   if (linkedinMatch) data.linkedin = linkedinMatch[1];
 
-  // Extract GitHub
+  // ─── Extract GitHub ───
   const githubMatch = text.match(/github\.com\/([\w-]+)/i);
   if (githubMatch) data.github = githubMatch[1];
 
-  // Extract name (usually first line or near top)
-  const lines = text.split('\n').filter(l => l.trim());
-  if (lines.length > 0) {
-    // First non-empty line is likely the name
-    data.name = lines[0].trim().replace(/[^\w\s]/g, '').slice(0, 50);
+  // ─── Extract name (smarter: look for a proper name in first few lines) ───
+  const sectionHeaders = /^(summary|about|profile|objective|experience|education|skills|projects|work|certif|contact|interests|hobbies|achievements|awards|languages|references)/i;
+  for (const line of lines.slice(0, 8)) {
+    const cleaned = line.replace(/[^\w\s.-]/g, '').trim();
+    // A name is typically 2-4 words, title-case, no numbers, not a section header
+    if (
+      cleaned.length >= 3 &&
+      cleaned.length <= 50 &&
+      !sectionHeaders.test(cleaned) &&
+      !/\d/.test(cleaned) &&
+      !/@/.test(line) &&
+      !/(http|www\.|\.com|\.org)/i.test(line) &&
+      !/phone|email|address|linkedin|github/i.test(line) &&
+      cleaned.split(/\s+/).length >= 2 &&
+      cleaned.split(/\s+/).length <= 5
+    ) {
+      data.name = cleaned;
+      break;
+    }
+  }
+  // Fallback: first line cleaned
+  if (!data.name && lines.length > 0) {
+    data.name = lines[0].replace(/[^\w\s]/g, '').trim().slice(0, 50);
   }
 
-  // Extract role/title (common keywords)
-  const roleKeywords = ['Developer', 'Engineer', 'Designer', 'Manager', 'Analyst', 'Architect', 'Consultant'];
-  for (const line of lines.slice(0, 5)) {
+  // ─── Extract role/title ───
+  const roleKeywords = [
+    'Developer', 'Engineer', 'Designer', 'Manager', 'Analyst', 'Architect',
+    'Consultant', 'Intern', 'Scientist', 'Researcher', 'Administrator',
+    'Lead', 'Director', 'Specialist', 'Coordinator', 'Programmer',
+    'Full Stack', 'Frontend', 'Backend', 'DevOps', 'Data', 'Machine Learning',
+    'AI', 'Software', 'Web', 'Mobile', 'Cloud', 'Security', 'QA', 'UI/UX'
+  ];
+  for (const line of lines.slice(0, 10)) {
+    const lower = line.toLowerCase();
+    // Skip section headers
+    if (sectionHeaders.test(line)) continue;
+    // Skip lines that are just a name or contact info
+    if (line === data.name) continue;
+    if (/@|phone|http|www\./i.test(line)) continue;
+    
     for (const keyword of roleKeywords) {
-      if (line.includes(keyword)) {
-        data.role = line.trim().slice(0, 100);
-        break;
+      if (lower.includes(keyword.toLowerCase())) {
+        // Clean the role line
+        let role = line.replace(/[•\-|]/g, '').trim();
+        if (role.length > 5 && role.length < 120) {
+          data.role = role;
+          break;
+        }
       }
     }
     if (data.role) break;
   }
 
-  // Extract skills (look for skills section or scan whole text)
-  const skillsIndex = text.toLowerCase().indexOf('skills');
-  const skillsText = skillsIndex !== -1 ? text.slice(skillsIndex, skillsIndex + 800) : text;
-  const commonSkills = [
-    'JavaScript', 'Python', 'Java', 'React', 'Node.js', 'NodeJS', 'HTML', 'CSS', 'SQL',
-    'MongoDB', 'AWS', 'Docker', 'Git', 'TypeScript', 'Angular', 'Vue', 'Express',
-    'C++', 'C#', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Flutter', 'Django',
-    'Flask', 'Spring', 'Next.js', 'Tailwind', 'Bootstrap', 'Firebase', 'PostgreSQL',
-    'MySQL', 'Redis', 'GraphQL', 'REST', 'API', 'Linux', 'Azure', 'GCP', 'Kubernetes',
-    'Jenkins', 'CI/CD', 'Figma', 'Photoshop', 'Machine Learning', 'Deep Learning',
-    'TensorFlow', 'PyTorch', 'Data Science', 'NLP', 'Computer Vision', 'Pandas',
-    'NumPy', 'Scikit', 'Tableau', 'Power BI', 'Excel', 'MATLAB', 'R',
-    'Blockchain', 'Solidity', 'Web3', 'Agile', 'Scrum', 'JIRA'
-  ];
-  data.skills = commonSkills.filter(skill => 
-    skillsText.toLowerCase().includes(skill.toLowerCase())
-  );
-  // If no skills found from list, try to grab words near "skills" section
-  if (data.skills.length === 0 && skillsIndex !== -1) {
-    const rawSkills = text.slice(skillsIndex + 6, skillsIndex + 300)
-      .split(/[,\n•|]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 1 && s.length < 30);
-    data.skills = rawSkills.slice(0, 15);
-  }
-
-  // Extract summary/bio
-  const summaryKeywords = ['summary', 'about', 'profile', 'objective'];
-  for (const keyword of summaryKeywords) {
-    const idx = text.toLowerCase().indexOf(keyword);
-    if (idx !== -1) {
-      const section = text.slice(idx, idx + 400);
-      const sentences = section.split(/[.\n]/).slice(1, 3);
-      data.summary = sentences.join('. ').trim().slice(0, 300);
-      data.bio = data.summary;
-      break;
-    }
-  }
-
-  // Extract projects (look for project section)
-  const projectsIndex = text.toLowerCase().indexOf('project');
-  if (projectsIndex !== -1) {
-    const projectsSection = text.slice(projectsIndex, projectsIndex + 1000);
-    const projectLines = projectsSection.split('\n').filter(l => l.trim() && l.length > 10);
-    
-    for (let i = 0; i < Math.min(3, projectLines.length); i += 2) {
-      if (projectLines[i]) {
-        data.projects.push({
-          title: projectLines[i].trim().slice(0, 100),
-          description: projectLines[i + 1] ? projectLines[i + 1].trim().slice(0, 200) : '',
-          link: ''
-        });
+  // ─── Identify section boundaries ───
+  const sectionPattern = /^(summary|about\s*me|about|profile|objective|professional\s*summary|career\s*summary|experience|work\s*experience|professional\s*experience|education|academic|skills|technical\s*skills|core\s*competencies|projects|personal\s*projects|certif|contact|interests|hobbies|achievements|awards|languages|references|publications)/i;
+  
+  function findSection(keywords) {
+    for (let i = 0; i < lines.length; i++) {
+      const clean = lines[i].replace(/[:\-•|#*_]/g, '').trim().toLowerCase();
+      for (const kw of keywords) {
+        if (clean === kw || clean.startsWith(kw + ' ') || clean.endsWith(' ' + kw)) {
+          return i;
+        }
       }
     }
+    return -1;
+  }
+
+  function getSectionEnd(startIdx) {
+    for (let i = startIdx + 1; i < lines.length; i++) {
+      const clean = lines[i].replace(/[:\-•|#*_]/g, '').trim();
+      if (sectionPattern.test(clean) && clean.length < 40) {
+        return i;
+      }
+    }
+    return Math.min(startIdx + 30, lines.length); // cap at 30 lines
+  }
+
+  function getSectionText(startIdx) {
+    const endIdx = getSectionEnd(startIdx);
+    return lines.slice(startIdx + 1, endIdx).join(' ').trim();
+  }
+
+  // ─── Extract summary/bio (much better: get full section) ───
+  const summaryIdx = findSection(['summary', 'about me', 'about', 'profile', 'objective', 'professional summary', 'career summary', 'career objective']);
+  if (summaryIdx !== -1) {
+    const sectionText = getSectionText(summaryIdx);
+    // Clean up and take meaningful content
+    const cleaned = sectionText
+      .replace(/\s+/g, ' ')
+      .replace(/^[\s•\-:]+/, '')
+      .trim();
+    if (cleaned.length > 20) {
+      data.summary = cleaned.slice(0, 500);
+      data.bio = data.summary;
+    }
+  }
+  // Fallback: if no summary section, try to find a paragraph-like block in first 15 lines
+  if (!data.bio) {
+    for (const line of lines.slice(1, 15)) {
+      if (line.length > 80 && !sectionHeaders.test(line) && !/@/.test(line)) {
+        data.bio = line.slice(0, 500);
+        data.summary = data.bio;
+        break;
+      }
+    }
+  }
+
+  // ─── Extract skills (word-boundary matching to prevent false positives) ───
+  const skillsIdx = findSection(['skills', 'technical skills', 'core competencies', 'technologies', 'tech stack', 'tools']);
+  let skillsText = '';
+  if (skillsIdx !== -1) {
+    const endIdx = getSectionEnd(skillsIdx);
+    skillsText = lines.slice(skillsIdx, endIdx).join(' ');
+  } else {
+    skillsText = text; // fallback: scan entire text
+  }
+
+  // Skills with proper word-boundary matching
+  const skillDefinitions = [
+    // Programming Languages (use word boundaries to avoid false matches)
+    { name: 'JavaScript', pattern: /\bjavascript\b/i },
+    { name: 'TypeScript', pattern: /\btypescript\b/i },
+    { name: 'Python', pattern: /\bpython\b/i },
+    { name: 'Java', pattern: /\bjava\b(?!\s*script)/i },
+    { name: 'C++', pattern: /\bc\+\+/i },
+    { name: 'C#', pattern: /\bc#/i },
+    { name: 'C', pattern: /\bc\b(?!\+|#|s|o)/i },  // avoid C++, C#, CSS, Co...
+    { name: 'PHP', pattern: /\bphp\b/i },
+    { name: 'Ruby', pattern: /\bruby\b/i },
+    { name: 'Go', pattern: /\bgolang\b|\bgo\s*lang\b|\bgo\b(?=\s*[,;|•\n])/i }, // only match Go near delimiters
+    { name: 'Rust', pattern: /\brust\b/i },
+    { name: 'Swift', pattern: /\bswift\b/i },
+    { name: 'Kotlin', pattern: /\bkotlin\b/i },
+    { name: 'R', pattern: /\br\b(?=\s*[,;|•\n(]|\s+programming|\s+language|\s+studio)/i }, // only match R near delimiters or "R programming"
+    { name: 'MATLAB', pattern: /\bmatlab\b/i },
+    { name: 'Dart', pattern: /\bdart\b/i },
+    { name: 'Scala', pattern: /\bscala\b/i },
+    { name: 'Perl', pattern: /\bperl\b/i },
+    { name: 'Haskell', pattern: /\bhaskell\b/i },
+    
+    // Frontend
+    { name: 'React', pattern: /\breact(\.?js)?\b/i },
+    { name: 'Angular', pattern: /\bangular(\.?js)?\b/i },
+    { name: 'Vue.js', pattern: /\bvue(\.?js)?\b/i },
+    { name: 'Next.js', pattern: /\bnext(\.?js)?\b/i },
+    { name: 'Svelte', pattern: /\bsvelte\b/i },
+    { name: 'HTML', pattern: /\bhtml5?\b/i },
+    { name: 'CSS', pattern: /\bcss3?\b/i },
+    { name: 'Tailwind CSS', pattern: /\btailwind\b/i },
+    { name: 'Bootstrap', pattern: /\bbootstrap\b/i },
+    { name: 'SASS', pattern: /\bsass\b|\bscss\b/i },
+    { name: 'jQuery', pattern: /\bjquery\b/i },
+    
+    // Backend
+    { name: 'Node.js', pattern: /\bnode(\.?js)?\b/i },
+    { name: 'Express', pattern: /\bexpress(\.?js)?\b/i },
+    { name: 'Django', pattern: /\bdjango\b/i },
+    { name: 'Flask', pattern: /\bflask\b/i },
+    { name: 'FastAPI', pattern: /\bfastapi\b/i },
+    { name: 'Spring Boot', pattern: /\bspring\s*boot\b/i },
+    { name: 'Spring', pattern: /\bspring\b(?!\s*boot)/i },
+    { name: 'Laravel', pattern: /\blaravel\b/i },
+    { name: 'ASP.NET', pattern: /\basp\.?net\b/i },
+    { name: 'Ruby on Rails', pattern: /\brails\b|\bruby on rails\b/i },
+    
+    // Databases
+    { name: 'MongoDB', pattern: /\bmongodb\b|\bmongo\b/i },
+    { name: 'PostgreSQL', pattern: /\bpostgres(ql)?\b/i },
+    { name: 'MySQL', pattern: /\bmysql\b/i },
+    { name: 'SQLite', pattern: /\bsqlite\b/i },
+    { name: 'SQL', pattern: /\bsql\b(?!ite)/i },
+    { name: 'Redis', pattern: /\bredis\b/i },
+    { name: 'Firebase', pattern: /\bfirebase\b/i },
+    { name: 'Supabase', pattern: /\bsupabase\b/i },
+    { name: 'DynamoDB', pattern: /\bdynamodb\b/i },
+    { name: 'Cassandra', pattern: /\bcassandra\b/i },
+    { name: 'Oracle', pattern: /\boracle\b/i },
+    
+    // Cloud & DevOps
+    { name: 'AWS', pattern: /\baws\b/i },
+    { name: 'Azure', pattern: /\bazure\b/i },
+    { name: 'GCP', pattern: /\bgcp\b|\bgoogle cloud\b/i },
+    { name: 'Docker', pattern: /\bdocker\b/i },
+    { name: 'Kubernetes', pattern: /\bkubernetes\b|\bk8s\b/i },
+    { name: 'Jenkins', pattern: /\bjenkins\b/i },
+    { name: 'CI/CD', pattern: /\bci\/?cd\b/i },
+    { name: 'Terraform', pattern: /\bterraform\b/i },
+    { name: 'Ansible', pattern: /\bansible\b/i },
+    { name: 'Nginx', pattern: /\bnginx\b/i },
+    { name: 'Heroku', pattern: /\bheroku\b/i },
+    { name: 'Vercel', pattern: /\bvercel\b/i },
+    { name: 'Netlify', pattern: /\bnetlify\b/i },
+    
+    // Tools
+    { name: 'Git', pattern: /\bgit\b(?!hub|lab)/i },
+    { name: 'GitHub', pattern: /\bgithub\b/i },
+    { name: 'GitLab', pattern: /\bgitlab\b/i },
+    { name: 'Linux', pattern: /\blinux\b/i },
+    { name: 'Figma', pattern: /\bfigma\b/i },
+    { name: 'Photoshop', pattern: /\bphotoshop\b/i },
+    { name: 'VS Code', pattern: /\bvs\s*code\b|\bvisual studio code\b/i },
+    { name: 'Postman', pattern: /\bpostman\b/i },
+    { name: 'JIRA', pattern: /\bjira\b/i },
+    { name: 'Webpack', pattern: /\bwebpack\b/i },
+    { name: 'Vite', pattern: /\bvite\b/i },
+    
+    // Data/AI/ML
+    { name: 'Machine Learning', pattern: /\bmachine\s*learning\b/i },
+    { name: 'Deep Learning', pattern: /\bdeep\s*learning\b/i },
+    { name: 'TensorFlow', pattern: /\btensorflow\b/i },
+    { name: 'PyTorch', pattern: /\bpytorch\b/i },
+    { name: 'Scikit-Learn', pattern: /\bscikit\b|\bsklearn\b/i },
+    { name: 'Pandas', pattern: /\bpandas\b/i },
+    { name: 'NumPy', pattern: /\bnumpy\b/i },
+    { name: 'Data Science', pattern: /\bdata\s*science\b/i },
+    { name: 'NLP', pattern: /\bnlp\b|\bnatural language processing\b/i },
+    { name: 'Computer Vision', pattern: /\bcomputer\s*vision\b/i },
+    { name: 'OpenCV', pattern: /\bopencv\b/i },
+    { name: 'Tableau', pattern: /\btableau\b/i },
+    { name: 'Power BI', pattern: /\bpower\s*bi\b/i },
+    { name: 'Excel', pattern: /\bexcel\b/i },
+    
+    // Mobile
+    { name: 'Flutter', pattern: /\bflutter\b/i },
+    { name: 'React Native', pattern: /\breact\s*native\b/i },
+    { name: 'Android', pattern: /\bandroid\b/i },
+    { name: 'iOS', pattern: /\bios\b/i },
+    
+    // Other
+    { name: 'GraphQL', pattern: /\bgraphql\b/i },
+    { name: 'REST API', pattern: /\brest\s*(ful)?\s*api\b|\brest\b/i },
+    { name: 'WebSocket', pattern: /\bwebsocket\b/i },
+    { name: 'Blockchain', pattern: /\bblockchain\b/i },
+    { name: 'Solidity', pattern: /\bsolidity\b/i },
+    { name: 'Web3', pattern: /\bweb3\b/i },
+    { name: 'Agile', pattern: /\bagile\b/i },
+    { name: 'Scrum', pattern: /\bscrum\b/i },
+    { name: 'Three.js', pattern: /\bthree\.?js\b/i },
+    { name: 'Socket.io', pattern: /\bsocket\.?io\b/i },
+    { name: 'Mongoose', pattern: /\bmongoose\b/i },
+    { name: 'Prisma', pattern: /\bprisma\b/i },
+    { name: 'OAuth', pattern: /\boauth\b/i },
+    { name: 'JWT', pattern: /\bjwt\b/i },
+  ];
+
+  // Match skills using regex patterns (much more accurate than .includes())
+  const matchedSkills = new Set();
+  for (const skill of skillDefinitions) {
+    if (skill.pattern.test(skillsText)) {
+      matchedSkills.add(skill.name);
+    }
+  }
+  data.skills = [...matchedSkills];
+
+  // If no skills found from patterns and we have a skills section, extract raw items
+  if (data.skills.length === 0 && skillsIdx !== -1) {
+    const endIdx = getSectionEnd(skillsIdx);
+    const rawText = lines.slice(skillsIdx + 1, endIdx).join('\n');
+    const rawSkills = rawText
+      .split(/[,\n•|:;\/]/)
+      .map(s => s.replace(/[^\w\s.#+\-]/g, '').trim())
+      .filter(s => s.length > 1 && s.length < 35 && !/^\d+$/.test(s));
+    data.skills = [...new Set(rawSkills)].slice(0, 20);
+  }
+
+  // ─── Extract projects (much smarter parsing) ───
+  const projectIdx = findSection(['projects', 'personal projects', 'academic projects', 'key projects', 'notable projects', 'selected projects']);
+  if (projectIdx !== -1) {
+    const projectEnd = getSectionEnd(projectIdx);
+    const projectLines = lines.slice(projectIdx + 1, projectEnd);
+    
+    let currentProject = null;
+    const projects = [];
+
+    for (const line of projectLines) {
+      const stripped = line.replace(/[•\-\u2022\u2023\u25E6\u2043\u2219]/g, '').trim();
+      if (!stripped) continue;
+
+      // Detect project title: typically short, may have | or – or : separator, 
+      // or is bold/caps, not starting with common description words
+      const isLikelyTitle = (
+        stripped.length < 80 &&
+        !stripped.startsWith('Built') &&
+        !stripped.startsWith('Developed') &&
+        !stripped.startsWith('Created') &&
+        !stripped.startsWith('Implemented') &&
+        !stripped.startsWith('Designed') &&
+        !stripped.startsWith('Used') &&
+        !stripped.startsWith('Utilized') &&
+        !stripped.startsWith('Leveraged') &&
+        !stripped.startsWith('Integrated') &&
+        !stripped.startsWith('Achieved') &&
+        !stripped.startsWith('Reduced') &&
+        !stripped.startsWith('Improved') &&
+        !stripped.startsWith('Managed') &&
+        !stripped.startsWith('Led') &&
+        !stripped.startsWith('Collaborated') &&
+        !stripped.startsWith('Conducted') &&
+        !/^\d/.test(stripped) &&
+        (
+          // Has a separator like | or – suggesting "Title | Tech Stack"
+          /[|–—]/.test(stripped) ||
+          // Or is relatively short and doesn't start with lowercase
+          (stripped.length < 60 && /^[A-Z]/.test(stripped) && !stripped.includes('. '))
+        )
+      );
+
+      if (isLikelyTitle && stripped.length > 3) {
+        // Save previous project
+        if (currentProject && currentProject.title) {
+          projects.push(currentProject);
+        }
+        // Parse title - split on | or – to separate title from tech stack
+        const titleParts = stripped.split(/\s*[|–—]\s*/);
+        currentProject = {
+          title: titleParts[0].trim().slice(0, 100),
+          description: '',
+          link: ''
+        };
+        // If there's a tech mention after separator, include it
+        if (titleParts.length > 1) {
+          currentProject.description = titleParts.slice(1).join(' ').trim();
+        }
+      } else if (currentProject) {
+        // This is a description line for the current project
+        const linkMatch = stripped.match(/https?:\/\/[^\s)]+/);
+        if (linkMatch) {
+          currentProject.link = linkMatch[0];
+        }
+        // Append to description
+        const descLine = stripped.replace(/https?:\/\/[^\s)]+/g, '').trim();
+        if (descLine.length > 5) {
+          currentProject.description += (currentProject.description ? '. ' : '') + descLine;
+        }
+      }
+    }
+    // Push the last project
+    if (currentProject && currentProject.title) {
+      projects.push(currentProject);
+    }
+
+    // Clean up descriptions and limit
+    data.projects = projects.slice(0, 5).map(p => ({
+      title: p.title,
+      description: p.description.slice(0, 300),
+      link: p.link
+    }));
+  }
+
+  // Fallback: if no projects found at all, don't add fake ones
+  if (data.projects.length === 0) {
+    data.projects = [];
   }
 
   return data;
