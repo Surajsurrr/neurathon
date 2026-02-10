@@ -1,11 +1,15 @@
 import { useState } from 'react'
 import './LandingPage.css'
 
-function LandingPage({ onGetStarted, onResumeUpload }) {
+function LandingPage({ onGetStarted, onResumeUpload, onCloneDesign }) {
   const [showResumeModal, setShowResumeModal] = useState(false)
+  const [showCloneModal, setShowCloneModal] = useState(false)
   const [resumeFile, setResumeFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [cloneUrl, setCloneUrl] = useState('')
+  const [cloning, setCloning] = useState(false)
+  const [cloneError, setCloneError] = useState('')
 
   const handleResumeSelect = (e) => {
     const file = e.target.files[0]
@@ -59,6 +63,54 @@ function LandingPage({ onGetStarted, onResumeUpload }) {
     }
   }
 
+  const handleClonePortfolio = async () => {
+    if (!cloneUrl.trim()) {
+      setCloneError('Please enter a portfolio URL')
+      return
+    }
+
+    // Basic URL validation
+    try {
+      const url = new URL(cloneUrl.startsWith('http') ? cloneUrl : 'https://' + cloneUrl)
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error()
+    } catch {
+      setCloneError('Please enter a valid URL (e.g. https://example.com)')
+      return
+    }
+
+    setCloning(true)
+    setCloneError('')
+
+    try {
+      const finalUrl = cloneUrl.startsWith('http') ? cloneUrl : 'https://' + cloneUrl
+      const response = await fetch('http://localhost:3000/api/clone-portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: finalUrl })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setShowCloneModal(false)
+        setCloneUrl('')
+        if (onCloneDesign) {
+          onCloneDesign({
+            clonedTemplateId: data.clonedTemplateId,
+            sourceUrl: data.sourceUrl,
+            detectedSections: data.detectedSections
+          })
+        }
+      } else {
+        setCloneError(data.error || 'Failed to clone portfolio design')
+      }
+    } catch (error) {
+      setCloneError('Error connecting to server. Please try again.')
+    } finally {
+      setCloning(false)
+    }
+  }
+
   return (
     <div className="landing-page">
       
@@ -87,12 +139,12 @@ function LandingPage({ onGetStarted, onResumeUpload }) {
             <p>Have a resume ready? Upload it and let our AI extract all the information automatically. Your portfolio will be generated in seconds.</p>
             <div className="method-tag" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>Available Now</div>
           </div>
-          <div className="method-card">
+          <div className="method-card" onClick={() => setShowCloneModal(true)} style={{ cursor: 'pointer' }}>
             <div className="method-number">03</div>
             <div className="method-icon">🎨</div>
             <h3>Clone a Portfolio</h3>
-            <p>Found a portfolio you love? Upload it as a reference, choose your template, and we'll help you create a similar design with your content.</p>
-            <div className="method-tag">Coming Soon</div>
+            <p>Found a portfolio design you love? Paste its URL and we'll clone the template structure, then you fill in your own details.</p>
+            <div className="method-tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>New ✨</div>
           </div>
         </div>
       </section>
@@ -163,6 +215,53 @@ function LandingPage({ onGetStarted, onResumeUpload }) {
                 <>
                   <span>✨ Extract & Generate Portfolio</span>
                 </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Clone Portfolio Modal */}
+      {showCloneModal && (
+        <div className="modal-overlay" onClick={() => setShowCloneModal(false)}>
+          <div className="resume-modal clone-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowCloneModal(false)}>✕</button>
+            <h2>🎨 Clone a Portfolio Design</h2>
+            <p className="modal-subtitle">Paste the URL of any portfolio website and we'll clone its design for you to use with your own content</p>
+            
+            <div className="clone-input-area">
+              <div className="clone-url-field">
+                <span className="clone-url-icon">🔗</span>
+                <input
+                  type="url"
+                  value={cloneUrl}
+                  onChange={(e) => { setCloneUrl(e.target.value); setCloneError(''); }}
+                  placeholder="https://johndoe.github.io/portfolio"
+                  className="clone-url-input"
+                  onKeyDown={(e) => e.key === 'Enter' && handleClonePortfolio()}
+                />
+              </div>
+              <div className="clone-examples">
+                <span>Try:</span>
+                <button onClick={() => setCloneUrl('https://brittanychiang.com')}>brittanychiang.com</button>
+                <button onClick={() => setCloneUrl('https://mattfarley.ca')}>mattfarley.ca</button>
+              </div>
+            </div>
+
+            {cloneError && <div className="upload-error">{cloneError}</div>}
+
+            <button 
+              className="btn-upload btn-clone" 
+              onClick={handleClonePortfolio}
+              disabled={!cloneUrl.trim() || cloning}
+            >
+              {cloning ? (
+                <>
+                  <div className="btn-spinner"></div>
+                  <span>Cloning Design...</span>
+                </>
+              ) : (
+                <span>🚀 Clone Design & Continue</span>
               )}
             </button>
           </div>

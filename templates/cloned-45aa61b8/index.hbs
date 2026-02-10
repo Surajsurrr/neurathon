@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" sizes="32x32" href="https://ashwathp-portfolio.vercel.app/logo.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://ashwathp-portfolio.vercel.app/logo.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="https://ashwathp-portfolio.vercel.app/logo.png">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{name}} - Portfolio</title>
+    
+    
+  <link rel="stylesheet" href="https://ashwathp-portfolio.vercel.app/style.css">
+</head>
+  <body>
+<section style="text-align:center;padding:3rem 1rem;">
+  <h1>{{name}}</h1>
+  <p style="font-size:1.2em;opacity:0.8;">{{role}}</p>
+  <p style="max-width:600px;margin:1rem auto;">{{bio}}</p>
+</section>
+    <div id="root"></div>
+  
+<section style="padding:2rem 1rem;text-align:center;">
+  <h2>Skills</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;max-width:600px;margin:0 auto;">
+    {{#each (split skills ",")}}
+    <span style="background:rgba(100,100,255,0.15);padding:0.3rem 0.8rem;border-radius:20px;font-size:0.9rem;">{{this}}</span>
+    {{/each}}
+  </div>
+</section>
+
+<section style="padding:2rem 1rem;max-width:800px;margin:0 auto;">
+  <h2 style="text-align:center;">Projects</h2>
+  {{#each projects}}
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:1.5rem;margin:1rem 0;">
+    <h3>{{this.title}}</h3>
+    <p>{{this.description}}</p>
+    {{#if this.link}}<a href="{{this.link}}" target="_blank">View Project →</a>{{/if}}
+  </div>
+  {{/each}}
+</section>
+
+<section style="padding:2rem 1rem;text-align:center;">
+  {{#if email}}<p>📧 <a href="mailto:{{email}}">{{email}}</a></p>{{/if}}
+  <div style="display:flex;gap:1rem;justify-content:center;margin-top:0.5rem;">
+    {{#if githubUrl}}<a href="{{githubUrl}}" target="_blank">GitHub</a>{{/if}}
+    {{#if linkedinUrl}}<a href="{{linkedinUrl}}" target="_blank">LinkedIn</a>{{/if}}
+  </div>
+</section>
+</body>
+</html>

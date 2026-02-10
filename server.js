@@ -594,6 +594,388 @@ async function extractResumeData(text) {
   return data;
 }
 
+// Clone portfolio endpoint - clones the DESIGN/TEMPLATE of a portfolio URL
+app.post('/api/clone-portfolio', async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, error: 'Please provide a portfolio URL' });
+    }
+
+    // Validate URL
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Invalid protocol');
+    } catch (e) {
+      return res.status(400).json({ success: false, error: 'Please enter a valid URL (https://...)' });
+    }
+
+    console.log('Cloning portfolio design from:', url);
+
+    // Fetch the webpage
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    let html;
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+        }
+      });
+      clearTimeout(timeout);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      html = await response.text();
+    } catch (fetchErr) {
+      clearTimeout(timeout);
+      console.error('Fetch error:', fetchErr.message);
+      return res.status(400).json({
+        success: false,
+        error: fetchErr.name === 'AbortError'
+          ? 'Request timed out. The website took too long to respond.'
+          : `Could not fetch the website: ${fetchErr.message}`
+      });
+    }
+
+    console.log('Fetched HTML length:', html.length);
+
+    // ─── Fetch external CSS and inline it ───
+    let allCSS = '';
+    // Extract <link rel="stylesheet"> hrefs
+    const cssLinkPattern = /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["'][^>]*>/gi;
+    const cssLinkPattern2 = /<link[^>]*href=["']([^"']+\.css[^"']*)["'][^>]*>/gi;
+    const cssUrls = new Set();
+    let cssMatch;
+    while ((cssMatch = cssLinkPattern.exec(html)) !== null) cssUrls.add(cssMatch[1]);
+    while ((cssMatch = cssLinkPattern2.exec(html)) !== null) cssUrls.add(cssMatch[1]);
+
+    for (const cssHref of cssUrls) {
+      try {
+        const cssUrl = cssHref.startsWith('http') ? cssHref
+          : cssHref.startsWith('//') ? 'https:' + cssHref
+          : new URL(cssHref, parsedUrl.origin).href;
+        const cssResp = await fetch(cssUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          signal: AbortSignal.timeout(8000)
+        });
+        if (cssResp.ok) {
+          allCSS += '\n/* Cloned from: ' + cssUrl + ' */\n';
+          allCSS += await cssResp.text();
+        }
+      } catch (e) {
+        console.log('Could not fetch CSS:', cssHref, e.message);
+      }
+    }
+
+    // Also extract inline <style> blocks
+    const inlineStylePattern = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+    let styleMatch;
+    while ((styleMatch = inlineStylePattern.exec(html)) !== null) {
+      allCSS += '\n/* Inline style */\n' + styleMatch[1];
+    }
+
+    console.log('Total CSS collected:', allCSS.length, 'chars');
+
+    // ─── Convert the HTML into a reusable Handlebars template ───
+    const { template: hbsTemplate, detectedSections } = convertHTMLToTemplate(html, parsedUrl.origin);
+
+    // ─── Save as a cloned template ───
+    const cloneId = 'cloned-' + uuidv4().slice(0, 8);
+    const cloneDir = path.join(TEMPLATES_DIR, cloneId);
+    await fs.ensureDir(cloneDir);
+
+    // Fix relative URLs in CSS (images, fonts)
+    let fixedCSS = allCSS.replace(/url\(['"]?(?!data:|https?:|\/\/)(\/?)([^'")]+)['"]?\)/gi, (match, slash, urlPath) => {
+      const fullUrl = new URL((slash ? '/' : '') + urlPath, parsedUrl.origin).href;
+      return `url('${fullUrl}')`;
+    });
+
+    await fs.writeFile(path.join(cloneDir, 'index.hbs'), hbsTemplate, 'utf8');
+    await fs.writeFile(path.join(cloneDir, 'style.css'), fixedCSS, 'utf8');
+
+    console.log('Cloned template saved as:', cloneId);
+    console.log('Detected sections:', detectedSections);
+
+    res.json({
+      success: true,
+      clonedTemplateId: cloneId,
+      sourceUrl: url,
+      detectedSections
+    });
+  } catch (error) {
+    console.error('Clone error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clone portfolio design. Please check the URL and try again.'
+    });
+  }
+});
+
+// ─── Convert scraped HTML into a Handlebars template ───
+function convertHTMLToTemplate(html, origin) {
+  let tpl = html;
+  const detected = { name: false, role: false, bio: false, skills: false, projects: false, email: false, social: false };
+
+  // 1. Remove <script> tags (we don't need JS)
+  tpl = tpl.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+
+  // 2. Remove existing <link rel="stylesheet"> and <style> (we'll use our collected CSS)
+  tpl = tpl.replace(/<link[^>]*rel=["']stylesheet["'][^>]*>/gi, '');
+  tpl = tpl.replace(/<link[^>]*href=["'][^"']*\.css[^"']*["'][^>]*>/gi, '');
+  tpl = tpl.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+  // 3. Inject our own CSS link in <head>
+  if (tpl.includes('</head>')) {
+    tpl = tpl.replace('</head>', '<link rel="stylesheet" href="style.css">\n</head>');
+  } else {
+    tpl = '<link rel="stylesheet" href="style.css">\n' + tpl;
+  }
+
+  // 4. Fix relative image/asset URLs to absolute
+  tpl = tpl.replace(/(src|href)=["'](?!data:|https?:|\/\/|#|\{\{)(\/?[^"']+)["']/gi, (match, attr, urlPath) => {
+    try {
+      const fullUrl = new URL(urlPath, origin).href;
+      return `${attr}="${fullUrl}"`;
+    } catch { return match; }
+  });
+
+  // ─── Replace NAME (h1 content) ───
+  const h1Match = tpl.match(/<h1([^>]*)>([\s\S]*?)<\/h1>/i);
+  if (h1Match) {
+    const h1Content = h1Match[2].replace(/<[^>]+>/g, '').trim();
+    if (h1Content.length > 1 && h1Content.length < 80) {
+      tpl = tpl.replace(h1Match[0], `<h1${h1Match[1]}>{{{name}}}</h1>`);
+      detected.name = true;
+    }
+  }
+  // Fallback: title tag
+  if (!detected.name) {
+    tpl = tpl.replace(/<title[^>]*>[\s\S]*?<\/title>/i, '<title>{{name}} - Portfolio</title>');
+  }
+
+  // ─── Replace ROLE/SUBTITLE ───
+  // Look for h2 near the top with role-like words, or any subtitle-like element
+  const rolePatterns = [
+    /(<h2[^>]*>)([\s\S]*?)(<\/h2>)/gi,
+    /(<(?:p|span|div)[^>]*class=["'][^"']*(?:subtitle|tagline|title|role|headline|hero-text|intro-text)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:p|span|div)>)/gi,
+  ];
+  let roleReplaced = false;
+  for (const pattern of rolePatterns) {
+    if (roleReplaced) break;
+    let match;
+    let firstH2 = true;
+    while ((match = pattern.exec(tpl)) !== null) {
+      const text = match[2].replace(/<[^>]+>/g, '').trim();
+      const roleWords = /developer|engineer|designer|architect|analyst|student|intern|scientist|specialist|manager|lead|consultant|programmer|freelancer|full.?stack|front.?end|back.?end|software|web|mobile|data|UX|UI/i;
+      if (roleWords.test(text) && text.length < 120) {
+        tpl = tpl.replace(match[0], `${match[1]}{{role}}${match[3]}`);
+        detected.role = true;
+        roleReplaced = true;
+        break;
+      }
+      // Replace first h2 as role if close to h1
+      if (firstH2 && pattern.source.includes('h2') && text.length < 80 && text.length > 2) {
+        tpl = tpl.replace(match[0], `${match[1]}{{role}}${match[3]}`);
+        detected.role = true;
+        roleReplaced = true;
+        break;
+      }
+      firstH2 = false;
+    }
+  }
+
+  // ─── Replace ABOUT/BIO section ───
+  const aboutSectionPatterns = [
+    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:about|bio|intro|summary)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
+  ];
+  for (const pattern of aboutSectionPatterns) {
+    const match = pattern.exec(tpl);
+    if (match) {
+      // Find <p> tags inside the about section and replace with {{bio}}
+      let sectionHTML = match[2];
+      const pMatches = sectionHTML.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
+      if (pMatches) {
+        // Replace the first substantial paragraph with {{bio}}
+        let replaced = false;
+        for (const p of pMatches) {
+          const pText = p.replace(/<[^>]+>/g, '').trim();
+          if (pText.length > 30 && !replaced) {
+            sectionHTML = sectionHTML.replace(p, '<p>{{bio}}</p>');
+            replaced = true;
+            detected.bio = true;
+          }
+        }
+        tpl = tpl.replace(match[2], sectionHTML);
+      }
+      break;
+    }
+  }
+
+  // ─── Replace SKILLS section ───
+  const skillsSectionPatterns = [
+    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:skill|tech|stack|tool|competenc|expertise)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
+  ];
+  for (const pattern of skillsSectionPatterns) {
+    const match = pattern.exec(tpl);
+    if (match) {
+      let sectionHTML = match[2];
+      // Find the list/container of skill items
+      const ulMatch = sectionHTML.match(/<(ul|ol|div)[^>]*>([\s\S]*?)<\/\1>/i);
+      if (ulMatch) {
+        // Find one skill item to use as a template
+        const itemMatch = ulMatch[2].match(/<(li|span|div|a)[^>]*>([\s\S]*?)<\/\1>/i);
+        if (itemMatch) {
+          const skillItemTemplate = itemMatch[0].replace(itemMatch[2], '{{this}}');
+          const replacement = `<${ulMatch[1]}${ulMatch[0].match(/<(?:ul|ol|div)([^>]*)>/i)?.[1] || ''}>{{#each (split skills ",")}}\n${skillItemTemplate}\n{{/each}}</${ulMatch[1]}>`;
+          sectionHTML = sectionHTML.replace(ulMatch[0], replacement);
+          tpl = tpl.replace(match[2], sectionHTML);
+          detected.skills = true;
+        }
+      }
+      break;
+    }
+  }
+
+  // ─── Replace PROJECTS section ───
+  const projectSectionPatterns = [
+    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:project|work|portfolio|featured)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
+  ];
+  for (const pattern of projectSectionPatterns) {
+    const match = pattern.exec(tpl);
+    if (match) {
+      let sectionHTML = match[2];
+      // Find project cards (articles, divs with card/item class, or list items)
+      const cardPatterns = [
+        /<(article|div|li)[^>]*(?:class=["'][^"']*(?:card|item|project|featured)[^"']*["'])[^>]*>[\s\S]*?<\/\1>/gi,
+        /<(article)[^>]*>[\s\S]*?<\/\1>/gi,
+      ];
+      let cards = [];
+      for (const cp of cardPatterns) {
+        cards = sectionHTML.match(cp) || [];
+        if (cards.length > 0) break;
+      }
+
+      if (cards.length > 0) {
+        // Use the first card as the template for the each loop
+        let cardTemplate = cards[0];
+        // Replace title (h2/h3/h4)
+        cardTemplate = cardTemplate.replace(/<(h[2-4]|strong)([^>]*)>[\s\S]*?<\/\1>/i, '<$1$2>{{this.title}}</$1>');
+        // Replace description (first <p>)
+        cardTemplate = cardTemplate.replace(/<p([^>]*)>[\s\S]*?<\/p>/i, '<p$1>{{this.description}}</p>');
+        // Replace link
+        cardTemplate = cardTemplate.replace(/href=["'][^"'#][^"']*["']/i, 'href="{{this.link}}"');
+
+        // Replace all original cards with the {{#each}} loop
+        let projectContainer = sectionHTML;
+        // Remove all original cards
+        for (const card of cards) {
+          projectContainer = projectContainer.replace(card, '');
+        }
+        // Insert the each loop where first card was
+        const insertPoint = sectionHTML.indexOf(cards[0]);
+        const before = sectionHTML.substring(0, insertPoint);
+        // Find end of last card
+        const lastCardEnd = sectionHTML.lastIndexOf(cards[cards.length - 1]) + cards[cards.length - 1].length;
+        const after = sectionHTML.substring(lastCardEnd);
+        sectionHTML = before + '{{#each projects}}\n' + cardTemplate + '\n{{/each}}' + after;
+
+        tpl = tpl.replace(match[2], sectionHTML);
+        detected.projects = true;
+      }
+      break;
+    }
+  }
+
+  // ─── Replace EMAIL ───
+  const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
+  let emailMatch;
+  let firstEmail = true;
+  while ((emailMatch = emailRegex.exec(tpl)) !== null) {
+    if (firstEmail) {
+      tpl = tpl.replace(emailMatch[0], '{{email}}');
+      detected.email = true;
+      firstEmail = false;
+    }
+  }
+  // Also replace mailto: links
+  tpl = tpl.replace(/mailto:[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/gi, 'mailto:{{email}}');
+
+  // ─── Replace SOCIAL LINKS ───
+  tpl = tpl.replace(/https?:\/\/github\.com\/[\w-]+/gi, '{{githubUrl}}');
+  tpl = tpl.replace(/https?:\/\/(?:www\.)?linkedin\.com\/in\/[\w-]+/gi, '{{linkedinUrl}}');
+  if (/\{\{githubUrl\}\}|\{\{linkedinUrl\}\}/.test(tpl)) detected.social = true;
+
+  // ─── Fallback: if no sections detected, inject minimal placeholders ───
+  if (!detected.name && !detected.role && !detected.bio) {
+    // Wrap the body content with our own template structure
+    const bodyMatch = tpl.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (bodyMatch) {
+      // Prepend a hero section
+      const heroSection = `
+<section style="text-align:center;padding:3rem 1rem;">
+  <h1>{{name}}</h1>
+  <p style="font-size:1.2em;opacity:0.8;">{{role}}</p>
+  <p style="max-width:600px;margin:1rem auto;">{{bio}}</p>
+</section>`;
+      tpl = tpl.replace(bodyMatch[1], heroSection + bodyMatch[1]);
+      detected.name = true;
+      detected.role = true;
+      detected.bio = true;
+    }
+  }
+
+  if (!detected.skills) {
+    // Inject a skills section before </body>
+    const skillsSection = `
+<section style="padding:2rem 1rem;text-align:center;">
+  <h2>Skills</h2>
+  <div style="display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:center;max-width:600px;margin:0 auto;">
+    {{#each (split skills ",")}}
+    <span style="background:rgba(100,100,255,0.15);padding:0.3rem 0.8rem;border-radius:20px;font-size:0.9rem;">{{this}}</span>
+    {{/each}}
+  </div>
+</section>`;
+    tpl = tpl.replace('</body>', skillsSection + '\n</body>');
+    detected.skills = true;
+  }
+
+  if (!detected.projects) {
+    const projectsSection = `
+<section style="padding:2rem 1rem;max-width:800px;margin:0 auto;">
+  <h2 style="text-align:center;">Projects</h2>
+  {{#each projects}}
+  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:1.5rem;margin:1rem 0;">
+    <h3>{{this.title}}</h3>
+    <p>{{this.description}}</p>
+    {{#if this.link}}<a href="{{this.link}}" target="_blank">View Project →</a>{{/if}}
+  </div>
+  {{/each}}
+</section>`;
+    tpl = tpl.replace('</body>', projectsSection + '\n</body>');
+    detected.projects = true;
+  }
+
+  if (!detected.email) {
+    tpl = tpl.replace('</body>', `
+<section style="padding:2rem 1rem;text-align:center;">
+  {{#if email}}<p>📧 <a href="mailto:{{email}}">{{email}}</a></p>{{/if}}
+  <div style="display:flex;gap:1rem;justify-content:center;margin-top:0.5rem;">
+    {{#if githubUrl}}<a href="{{githubUrl}}" target="_blank">GitHub</a>{{/if}}
+    {{#if linkedinUrl}}<a href="{{linkedinUrl}}" target="_blank">LinkedIn</a>{{/if}}
+  </div>
+</section>
+</body>`);
+    tpl = tpl.replace('</body></body>', '</body>');
+    detected.email = true;
+    detected.social = true;
+  }
+
+  return { template: tpl, detectedSections: detected };
+}
+
 app.post('/api/generate', async (req, res) => {
   try {
     const payload = req.body;
@@ -610,7 +992,20 @@ app.post('/api/generate', async (req, res) => {
       'minimal', 'minimal-serif', 'minimal-mono',
       'creative', 'creative-bold', 'creative-neon'
     ];
-    const templateName = validTemplates.includes(selectedTemplate) ? selectedTemplate : 'simple';
+    // Support cloned templates (cloned-<uuid>)
+    const isClonedTemplate = selectedTemplate.startsWith('cloned-');
+    let templateName;
+    if (isClonedTemplate) {
+      // Verify the cloned template directory exists
+      const clonedDir = path.join(TEMPLATES_DIR, selectedTemplate);
+      if (await fs.pathExists(clonedDir)) {
+        templateName = selectedTemplate;
+      } else {
+        return res.status(400).json({ error: 'Cloned template not found. Please try cloning again.' });
+      }
+    } else {
+      templateName = validTemplates.includes(selectedTemplate) ? selectedTemplate : 'simple';
+    }
 
     const id = uuidv4();
     // Normalize social handles and build full URLs (do not perform remote HEAD checks)
@@ -725,7 +1120,8 @@ app.get('/api/preview/:templateId', async (req, res) => {
       'creative', 'creative-bold', 'creative-neon'
     ];
 
-    if (!validTemplates.includes(templateId)) {
+    const isCloned = templateId.startsWith('cloned-');
+    if (!validTemplates.includes(templateId) && !isCloned) {
       return res.status(400).send('Invalid template ID');
     }
 
@@ -733,8 +1129,12 @@ app.get('/api/preview/:templateId', async (req, res) => {
     const tplPath = path.join(TEMPLATES_DIR, templateId, 'index.hbs');
     const cssPath = path.join(TEMPLATES_DIR, templateId, 'style.css');
     
+    if (!await fs.pathExists(tplPath)) {
+      return res.status(404).send('Template not found');
+    }
+
     const tplSrc = await fs.readFile(tplPath, 'utf8');
-    const cssSrc = await fs.readFile(cssPath, 'utf8');
+    const cssSrc = await fs.pathExists(cssPath) ? await fs.readFile(cssPath, 'utf8') : '';
     
     // Compile and render with sample data
     const tpl = Handlebars.compile(tplSrc);

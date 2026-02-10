@@ -24,6 +24,9 @@ function App() {
   const [success, setSuccess] = useState('')
   const [resumeData, setResumeData] = useState(null) // stores extracted resume data
   const [resumeFlow, setResumeFlow] = useState(false) // true = show template picker only
+  const [cloneFlow, setCloneFlow] = useState(false) // true = show form with cloned template
+  const [clonedTemplateId, setClonedTemplateId] = useState(null) // 'cloned-xxxx'
+  const [cloneSourceUrl, setCloneSourceUrl] = useState('')
 
   const templateCategories = {
     simple: [
@@ -174,8 +177,20 @@ function App() {
     // Store resume data and enter template-only flow
     setResumeData(extractedData)
     setResumeFlow(true)
+    setCloneFlow(false)
     setShowLanding(false)
     setSuccess('✨ Resume parsed successfully! Now pick a template for your portfolio.')
+    setTimeout(() => setSuccess(''), 4000)
+  }
+
+  const handleCloneDesign = (cloneInfo) => {
+    // Store cloned template and enter clone flow (show form to enter details)
+    setClonedTemplateId(cloneInfo.clonedTemplateId)
+    setCloneSourceUrl(cloneInfo.sourceUrl)
+    setCloneFlow(true)
+    setResumeFlow(false)
+    setShowLanding(false)
+    setSuccess('🎨 Design cloned successfully! Now enter your details to build your portfolio.')
     setTimeout(() => setSuccess(''), 4000)
   }
 
@@ -312,6 +327,7 @@ function App() {
         <LandingPage 
           onGetStarted={() => setShowLanding(false)} 
           onResumeUpload={handleResumeData}
+          onCloneDesign={handleCloneDesign}
         />
       ) : (
         <div className="portfolio-app">
@@ -588,6 +604,175 @@ function App() {
                 setTimeout(() => setSuccess(''), 4000)
               }}>
               ✏️ Want to edit details manually instead?
+            </button>
+          </div>
+        ) : cloneFlow ? (
+          /* ─── Clone Flow: Cloned Design Preview + Form ─── */
+          <div className="generator-view clone-flow-view">
+            <div className="hero-header">
+              <h1 className="hero-title">
+                Build with <span className="gradient-text">Cloned Design</span>
+              </h1>
+              <p className="hero-description">
+                Design cloned from <strong>{cloneSourceUrl}</strong> — now add your details
+              </p>
+            </div>
+
+            {/* Cloned design preview */}
+            <div className="clone-preview-banner">
+              <div className="clone-preview-left">
+                <span className="clone-preview-icon">🎨</span>
+                <div>
+                  <h3>Cloned Template Ready</h3>
+                  <p>The design from the URL has been converted into your custom template</p>
+                </div>
+              </div>
+              <button className="preview-cloned-btn" onClick={() => setPreviewTemplate({ id: clonedTemplateId, name: 'Cloned Design' })}>
+                👁️ Preview Design
+              </button>
+            </div>
+
+            {/* Form for user details */}
+            <form onSubmit={async (e) => {
+              e.preventDefault()
+              setError('')
+              setSuccess('')
+              if (!formData.name || !formData.projects[0].title) {
+                setError('Please fill in at least your name and one project')
+                return
+              }
+              setLoading(true)
+              try {
+                const response = await fetch('/api/generate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ...formData, template: clonedTemplateId })
+                })
+                if (!response.ok) throw new Error('Generation failed')
+                const data = await response.json()
+                if (data.success && data.shareUrl) {
+                  const newWindow = window.open(data.shareUrl, '_blank', 'noopener,noreferrer')
+                  if (!newWindow) window.location.href = data.shareUrl
+                  if (navigator.clipboard) {
+                    try { await navigator.clipboard.writeText(data.shareUrl) } catch (e) {}
+                  }
+                  setSuccess('🎉 Portfolio generated with cloned design! Link copied.')
+                  setTimeout(() => setSuccess(''), 5000)
+                } else throw new Error('Invalid response')
+              } catch (err) {
+                setError('Failed to generate portfolio. Please try again.')
+                console.error(err)
+              } finally {
+                setLoading(false)
+              }
+            }} className="generator-form">
+              
+              {/* Personal Info */}
+              <div className="form-section">
+                <div className="section-label">
+                  <div className="label-group">
+                    <span className="label-icon">👤</span>
+                    <h2>Personal Information</h2>
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="clone-name"><span className="field-icon">✨</span>Full Name *</label>
+                    <input id="clone-name" name="name" value={formData.name} onChange={handleInputChange} placeholder="John Doe" className="field-input" required />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="clone-role"><span className="field-icon">💼</span>Role / Title</label>
+                    <input id="clone-role" name="role" value={formData.role} onChange={handleInputChange} placeholder="Full Stack Developer" className="field-input" />
+                  </div>
+                  <div className="form-field full-width">
+                    <label htmlFor="clone-bio"><span className="field-icon">📝</span>Bio / About</label>
+                    <textarea id="clone-bio" name="bio" value={formData.bio} onChange={handleInputChange} placeholder="Tell us about yourself..." className="field-input" rows="3" />
+                  </div>
+                  <div className="form-field full-width">
+                    <label htmlFor="clone-skills"><span className="field-icon">🛠️</span>Skills (comma-separated)</label>
+                    <input id="clone-skills" name="skills" value={formData.skills} onChange={handleInputChange} placeholder="React, Node.js, Python, ..." className="field-input" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact & Social */}
+              <div className="form-section">
+                <div className="section-label">
+                  <div className="label-group">
+                    <span className="label-icon">🔗</span>
+                    <h2>Contact & Social</h2>
+                  </div>
+                </div>
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="clone-email"><span className="field-icon">📧</span>Email</label>
+                    <input id="clone-email" name="email" type="email" value={formData.email} onChange={handleInputChange} placeholder="you@email.com" className="field-input" />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="clone-github"><span className="field-icon">🐙</span>GitHub</label>
+                    <input id="clone-github" name="github" value={formData.github} onChange={handleInputChange} placeholder="username or URL" className="field-input" />
+                  </div>
+                  <div className="form-field">
+                    <label htmlFor="clone-linkedin"><span className="field-icon">💼</span>LinkedIn</label>
+                    <input id="clone-linkedin" name="linkedin" value={formData.linkedin} onChange={handleInputChange} placeholder="username or URL" className="field-input" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Projects */}
+              <div className="form-section">
+                <div className="section-label">
+                  <div className="label-group">
+                    <span className="label-icon">🚀</span>
+                    <h2>Projects</h2>
+                  </div>
+                </div>
+                {formData.projects.map((project, index) => (
+                  <div key={index} className="project-card">
+                    <div className="project-header">
+                      <span className="project-number">Project {index + 1}</span>
+                      {formData.projects.length > 1 && (
+                        <button type="button" className="remove-project" onClick={() => removeProject(index)}>✕</button>
+                      )}
+                    </div>
+                    <div className="form-grid">
+                      <div className="form-field">
+                        <label><span className="field-icon">📌</span>Title *</label>
+                        <input value={project.title} onChange={(e) => handleProjectChange(index, 'title', e.target.value)} placeholder="Project Name" className="field-input" required={index === 0} />
+                      </div>
+                      <div className="form-field">
+                        <label><span className="field-icon">🔗</span>Link</label>
+                        <input value={project.link} onChange={(e) => handleProjectChange(index, 'link', e.target.value)} placeholder="https://..." className="field-input" />
+                      </div>
+                      <div className="form-field full-width">
+                        <label><span className="field-icon">📄</span>Description</label>
+                        <textarea value={project.description} onChange={(e) => handleProjectChange(index, 'description', e.target.value)} placeholder="What does this project do?" className="field-input" rows="2" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                <button type="button" className="add-project-btn" onClick={addProject}>
+                  <span>+</span> Add Another Project
+                </button>
+              </div>
+
+              {/* Generate */}
+              <button type="submit" className="submit-btn" disabled={loading}>
+                {loading ? (
+                  <><div className="btn-spinner"></div><span>Generating with Cloned Design...</span></>
+                ) : (
+                  <span>🚀 Generate My Portfolio</span>
+                )}
+              </button>
+            </form>
+
+            <button className="text-link" style={{ marginTop: '1rem', display: 'block', textAlign: 'center', opacity: 0.7 }}
+              onClick={() => {
+                setCloneFlow(false)
+                setClonedTemplateId(null)
+                setShowLanding(true)
+              }}>
+              ← Back to choose a different method
             </button>
           </div>
         ) : (

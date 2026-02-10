@@ -948,3 +948,87 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ─── Clone Portfolio Modal ─── */
+.clone-modal h2 {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.clone-input-area {
+  margin: 1.5rem 0;
+}
+
+.clone-url-field {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 0.2rem 0.5rem;
+  transition: border-color 0.3s ease;
+}
+
+.clone-url-field:focus-within {
+  border-color: rgba(245, 87, 108, 0.5);
+  box-shadow: 0 0 20px rgba(245, 87, 108, 0.15);
+}
+
+.clone-url-icon {
+  font-size: 1.3rem;
+  padding: 0 0.5rem;
+}
+
+.clone-url-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e2e8f0;
+  font-size: 1rem;
+  padding: 0.9rem 0.5rem;
+  font-family: 'Courier New', monospace;
+}
+
+.clone-url-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.clone-examples {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.clone-examples span {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.8rem;
+}
+
+.clone-examples button {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #c4b5fd;
+  padding: 0.3rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clone-examples button:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.btn-clone {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+
+.btn-clone:hover:not(:disabled) {
+  box-shadow: 0 8px 30px rgba(245, 87, 108, 0.4) !important;
+}

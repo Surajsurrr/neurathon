@@ -866,3 +866,73 @@ body::after {
   color: #94a3b8;
   font-style: italic;
 }
+
+/* ─── Clone Flow Styles ─── */
+.clone-flow-view .hero-description strong {
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+.clone-preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12));
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 16px;
+  padding: 1.25rem 1.75rem;
+  margin-bottom: 2rem;
+  backdrop-filter: blur(10px);
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.clone-preview-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.clone-preview-icon {
+  font-size: 2rem;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 12px;
+}
+
+.clone-preview-left h3 {
+  color: #e2e8f0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.clone-preview-left p {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0;
+}
+
+.preview-cloned-btn {
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c4b5fd;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.preview-cloned-btn:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: rgba(139, 92, 246, 0.6);
+  color: #e0d5ff;
+  transform: translateY(-1px);
+}
