@@ -117,9 +117,22 @@ function App() {
     let dotX = 0
     let dotY = 0
 
+    let trailCounter = 0
+
     const handleMouseMove = (e) => {
       mouseX = e.clientX
       mouseY = e.clientY
+
+      // Spawn trail particle every 3rd move
+      trailCounter++
+      if (trailCounter % 3 === 0) {
+        const trail = document.createElement('div')
+        trail.className = 'cursor-trail'
+        trail.style.left = `${e.clientX - 3}px`
+        trail.style.top = `${e.clientY - 3}px`
+        document.body.appendChild(trail)
+        setTimeout(() => trail.remove(), 600)
+      }
     }
 
     const animateCursor = () => {
@@ -141,11 +154,50 @@ function App() {
       requestAnimationFrame(animateCursor)
     }
 
+    // Hover detection for interactive elements
+    const addHover = () => {
+      if (cursor) cursor.classList.add('hovering')
+      if (cursorDot) cursorDot.classList.add('hovering')
+    }
+    const removeHover = () => {
+      if (cursor) cursor.classList.remove('hovering')
+      if (cursorDot) cursorDot.classList.remove('hovering')
+    }
+    const addClick = () => {
+      if (cursor) cursor.classList.add('clicking')
+      if (cursorDot) cursorDot.classList.add('clicking')
+    }
+    const removeClick = () => {
+      if (cursor) cursor.classList.remove('clicking')
+      if (cursorDot) cursorDot.classList.remove('clicking')
+    }
+
+    document.querySelectorAll('button, a, input, textarea, .template-card, .category-tab, .nav-link, .add-btn, .submit-btn').forEach(el => {
+      el.addEventListener('mouseenter', addHover)
+      el.addEventListener('mouseleave', removeHover)
+    })
+    document.addEventListener('mousedown', addClick)
+    document.addEventListener('mouseup', removeClick)
+
     document.addEventListener('mousemove', handleMouseMove)
     animateCursor()
 
+    // Re-attach hover listeners when DOM updates
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll('button, a, input, textarea, .template-card, .category-tab, .nav-link, .add-btn, .submit-btn').forEach(el => {
+        el.removeEventListener('mouseenter', addHover)
+        el.removeEventListener('mouseleave', removeHover)
+        el.addEventListener('mouseenter', addHover)
+        el.addEventListener('mouseleave', removeHover)
+      })
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mousedown', addClick)
+      document.removeEventListener('mouseup', removeClick)
+      observer.disconnect()
     }
   }, [])
 

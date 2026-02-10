@@ -1,0 +1,165 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  background: #0a192f;
+  color: #8892b0;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.hero {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.hero-content {
+  max-width: 800px;
+}
+
+.hero h1 {
+  font-size: 5rem;
+  color: #ccd6f6;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  letter-spacing: -2px;
+}
+
+.role {
+  font-size: 2rem;
+  color: #64ffda;
+  margin-bottom: 2rem;
+  font-weight: 500;
+}
+
+.bio {
+  font-size: 1.2rem;
+  line-height: 1.8;
+  max-width: 700px;
+}
+
+.section {
+  margin-bottom: 6rem;
+}
+
+.section h2 {
+  font-size: 2rem;
+  color: #ccd6f6;
+  margin-bottom: 3rem;
+  font-weight: 600;
+}
+
+.section-number {
+  color: #64ffda;
+  font-family: 'Courier New', monospace;
+  margin-right: 1rem;
+  font-size: 1.5rem;
+}
+
+.projects {
+  display: grid;
+  gap: 2rem;
+}
+
+.project-card {
+  background: #112240;
+  padding: 2rem;
+  border-radius: 8px;
+  border-left: 3px solid #64ffda;
+  transition: all 0.3s;
+}
+
+.project-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.project-card h3 {
+  color: #ccd6f6;
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+}
+
+.project-card p {
+  margin-bottom: 1.5rem;
+  color: #8892b0;
+}
+
+.project-link {
+  color: #64ffda;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.project-link:hover {
+  padding-left: 5px;
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.skill-item {
+  color: #8892b0;
+  padding: 0.75rem 0;
+  font-size: 1.1rem;
+}
+
+.skill-item:hover {
+  color: #64ffda;
+  padding-left: 10px;
+  transition: all 0.3s;
+}
+
+.contact-info {
+  font-size: 1.2rem;
+}
+
+.contact-info p {
+  margin-bottom: 1rem;
+}
+
+.contact-info a {
+  color: #64ffda;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.contact-info a:hover {
+  color: #ccd6f6;
+}
+
+.footer {
+  text-align: center;
+  padding: 3rem 0;
+  color: #8892b0;
+  font-size: 0.9rem;
+  border-top: 1px solid #233554;
+}
+
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 3rem;
+  }
+
+  .role {
+    font-size: 1.5rem;
+  }
+
+  .skills-grid {
+    grid-template-columns: 1fr;
+  }
+}

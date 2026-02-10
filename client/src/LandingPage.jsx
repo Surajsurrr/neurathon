@@ -120,7 +120,7 @@ function LandingPage({ onGetStarted, onResumeUpload, onCloneDesign }) {
 
       {/* How It Works Section */}
       <section className="how-it-works-section">
-        <h2 className="section-title">Three Ways to Build Your Portfolio</h2>
+        <h2 className="section-title">Four Ways to Build Your Portfolio</h2>
         <p className="section-subtitle">
           Choose the method that works best for you - it's that simple!
         </p>
@@ -145,6 +145,13 @@ function LandingPage({ onGetStarted, onResumeUpload, onCloneDesign }) {
             <h3>Clone a Portfolio</h3>
             <p>Found a portfolio design you love? Paste its URL and we'll clone the template structure, then you fill in your own details.</p>
             <div className="method-tag" style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>New ✨</div>
+          </div>
+          <div className="method-card" onClick={() => window.open('http://172.20.10.8:5174/ai-studio', '_blank')} style={{ cursor: 'pointer' }}>
+            <div className="method-number">04</div>
+            <div className="method-icon">🐙</div>
+            <h3>Upload Your GitHub Link</h3>
+            <p>Share your GitHub profile URL and let our system automatically analyze your repositories, contributions, and tech stack to build a portfolio that truly reflects your coding journey.</p>
+            <div className="method-tag" style={{ background: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)' }}>GitHub Powered 🔗</div>
           </div>
         </div>
       </section>

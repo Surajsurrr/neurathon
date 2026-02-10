@@ -10,42 +10,92 @@
   position: fixed;
   width: 40px;
   height: 40px;
-  border: 2px solid #0891b2;
+  border: 2px solid rgba(139, 92, 246, 0.6);
   border-radius: 50%;
   pointer-events: none;
   z-index: 9999;
   left: -20px;
   top: -20px;
-  transition: width 0.3s ease, height 0.3s ease, border-color 0.3s ease;
-  box-shadow: 0 0 20px rgba(8, 145, 178, 0.5);
-  background: rgba(8, 145, 178, 0.1);
+  transition: width 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
+              height 0.35s cubic-bezier(0.25, 0.8, 0.25, 1),
+              border-color 0.3s ease,
+              background 0.3s ease,
+              opacity 0.3s ease;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.4),
+              0 0 60px rgba(139, 92, 246, 0.1);
+  background: rgba(139, 92, 246, 0.06);
+  mix-blend-mode: screen;
 }
 
 .custom-cursor-dot {
   position: fixed;
-  width: 8px;
-  height: 8px;
-  background: #06b6d4;
+  width: 10px;
+  height: 10px;
+  background: #a78bfa;
   border-radius: 50%;
   pointer-events: none;
   z-index: 10000;
-  left: -4px;
-  top: -4px;
-  box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+  left: -5px;
+  top: -5px;
+  box-shadow: 0 0 14px rgba(167, 139, 250, 0.9),
+              0 0 40px rgba(139, 92, 246, 0.4);
+  transition: width 0.2s ease, height 0.2s ease, background 0.2s ease;
 }
 
-/* Cursor hover effects */
-button:hover ~ .custom-cursor,
-a:hover ~ .custom-cursor,
-input:hover ~ .custom-cursor {
+/* Hover state — toggled via JS class */
+.custom-cursor.hovering {
   width: 60px;
   height: 60px;
-  border-color: #06b6d4;
-  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.7);
+  background: rgba(6, 182, 212, 0.08);
+  box-shadow: 0 0 30px rgba(6, 182, 212, 0.5),
+              0 0 80px rgba(6, 182, 212, 0.15);
 }
 
-.custom-cursor-dot:active {
-  transform: scale(0.5);
+.custom-cursor-dot.hovering {
+  width: 6px;
+  height: 6px;
+  background: #22d3ee;
+  box-shadow: 0 0 16px rgba(34, 211, 238, 1),
+              0 0 50px rgba(34, 211, 238, 0.5);
+}
+
+/* Click state */
+.custom-cursor.clicking {
+  width: 34px;
+  height: 34px;
+  border-color: #ec4899;
+  background: rgba(236, 72, 153, 0.15);
+}
+
+.custom-cursor-dot.clicking {
+  width: 14px;
+  height: 14px;
+  background: #f472b6;
+  box-shadow: 0 0 20px rgba(244, 114, 182, 1);
+}
+
+/* Cursor trail particles */
+.cursor-trail {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  background: rgba(139, 92, 246, 0.5);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9998;
+  animation: cursorTrailFade 0.6s ease forwards;
+}
+
+@keyframes cursorTrailFade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0);
+  }
 }
 
 body {

@@ -3,14 +3,21 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs-extra');
 const Handlebars = require('handlebars');
+const compression = require('compression');
 const archiver = require('archiver');
 const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const pdfParse = require('pdf-parse');
+const mammoth = require('mammoth');
 const Profile = require('./models/Profile');
 const sampleData = require('./sampleData');
 
 const app = express();
+
+// ─── Performance: gzip/deflate compression ───
+app.use(compression());
+
 app.use(express.json({ limit: '1mb' }));
 
 // Configure multer for file uploads
@@ -45,8 +52,13 @@ const PORTFOLIOS_DIR = path.join(__dirname, 'public', 'portfolios');
 // Ensure portfolios directory exists
 fs.ensureDirSync(PORTFOLIOS_DIR);
 
-// Serve static portfolios
-app.use('/portfolios', express.static(PORTFOLIOS_DIR));
+// Serve static portfolios with aggressive caching
+app.use('/portfolios', express.static(PORTFOLIOS_DIR, {
+  maxAge: '7d',
+  immutable: true,
+  etag: true,
+  lastModified: true
+}));
 
 // Connect to MongoDB (optional for MVP)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/ai-portfolio';
@@ -59,6 +71,28 @@ if (process.env.MONGODB_URI) {
 }
 
 // Register Handlebars helpers
+// ─── Performance: Template cache to avoid re-reading & re-compiling ───
+const templateCache = new Map();
+
+async function getCompiledTemplate(templateName) {
+  if (templateCache.has(templateName)) {
+    return templateCache.get(templateName);
+  }
+  const tplPath = path.join(TEMPLATES_DIR, templateName, 'index.hbs');
+  const cssPath = path.join(TEMPLATES_DIR, templateName, 'style.css');
+  const [tplSrc, cssSrc] = await Promise.all([
+    fs.readFile(tplPath, 'utf8'),
+    fs.readFile(cssPath, 'utf8')
+  ]);
+  const compiled = Handlebars.compile(tplSrc);
+  const entry = { compiled, cssSrc };
+  // Don't cache cloned templates (user-generated, may change)
+  if (!templateName.startsWith('cloned-')) {
+    templateCache.set(templateName, entry);
+  }
+  return entry;
+}
+
 Handlebars.registerHelper('split', function(str, delimiter) {
   if (!str) return [];
   return str.split(delimiter).map(s => s.trim()).filter(Boolean);
@@ -135,15 +169,13 @@ async function urlExists(url) {
 }
 
 async function renderTemplate(templateName, data, outDir) {
-  const tplPath = path.join(TEMPLATES_DIR, templateName, 'index.hbs');
-  const cssPath = path.join(TEMPLATES_DIR, templateName, 'style.css');
-  const tplSrc = await fs.readFile(tplPath, 'utf8');
-  const cssSrc = await fs.readFile(cssPath, 'utf8');
-  const tpl = Handlebars.compile(tplSrc);
-  const html = tpl(data);
+  const { compiled, cssSrc } = await getCompiledTemplate(templateName);
+  const html = compiled(data);
   await fs.ensureDir(outDir);
-  await fs.writeFile(path.join(outDir, 'index.html'), html, 'utf8');
-  await fs.writeFile(path.join(outDir, 'style.css'), cssSrc, 'utf8');
+  await Promise.all([
+    fs.writeFile(path.join(outDir, 'index.html'), html, 'utf8'),
+    fs.writeFile(path.join(outDir, 'style.css'), cssSrc, 'utf8')
+  ]);
 }
 
 // Resume parsing endpoint
@@ -161,7 +193,6 @@ app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
       // PDF parsing using pdf-parse
       const dataBuffer = await fs.readFile(filePath);
       try {
-        const pdfParse = require('pdf-parse');
         const data = await pdfParse(dataBuffer);
         extractedText = (data && data.text) ? data.text : '';
       } catch (pdfErr) {
@@ -171,7 +202,6 @@ app.post('/api/parse-resume', upload.single('resume'), async (req, res) => {
       }
     } else {
       // DOC/DOCX parsing
-      const mammoth = require('mammoth');
       const result = await mammoth.extractRawText({ path: filePath });
       extractedText = result.value;
     }
@@ -652,8 +682,9 @@ app.post('/api/clone-portfolio', async (req, res) => {
     while ((cssMatch = cssLinkPattern.exec(html)) !== null) cssUrls.add(cssMatch[1]);
     while ((cssMatch = cssLinkPattern2.exec(html)) !== null) cssUrls.add(cssMatch[1]);
 
-    for (const cssHref of cssUrls) {
-      try {
+    // Fetch all CSS files in parallel for speed
+    const cssResults = await Promise.allSettled(
+      [...cssUrls].map(async (cssHref) => {
         const cssUrl = cssHref.startsWith('http') ? cssHref
           : cssHref.startsWith('//') ? 'https:' + cssHref
           : new URL(cssHref, parsedUrl.origin).href;
@@ -662,12 +693,13 @@ app.post('/api/clone-portfolio', async (req, res) => {
           signal: AbortSignal.timeout(8000)
         });
         if (cssResp.ok) {
-          allCSS += '\n/* Cloned from: ' + cssUrl + ' */\n';
-          allCSS += await cssResp.text();
+          return '\n/* Cloned from: ' + cssUrl + ' */\n' + await cssResp.text();
         }
-      } catch (e) {
-        console.log('Could not fetch CSS:', cssHref, e.message);
-      }
+        return '';
+      })
+    );
+    for (const result of cssResults) {
+      if (result.status === 'fulfilled') allCSS += result.value;
     }
 
     // Also extract inline <style> blocks
@@ -714,6 +746,38 @@ app.post('/api/clone-portfolio', async (req, res) => {
   }
 });
 
+// ─── Helper: find a section with proper nested-tag depth tracking ───
+// Unlike regex ([\s\S]*?)(</tag>), this correctly handles nested same-name tags
+function findFullSection(source, openTagRegex) {
+  openTagRegex.lastIndex = 0;
+  const m = openTagRegex.exec(source);
+  if (!m) return null;
+  const startIdx = m.index;
+  const openTag = m[0];
+  const tagName = (openTag.match(/^<(\w+)/i) || [])[1];
+  if (!tagName) return null;
+  let depth = 1;
+  const scan = new RegExp(`<(/?)${tagName}(?=\\s|>)[^>]*>`, 'gi');
+  scan.lastIndex = startIdx + openTag.length;
+  let hit;
+  while ((hit = scan.exec(source)) !== null) {
+    if (hit[0].endsWith('/>')) continue; // self-closing
+    if (hit[1] === '/') { depth--; } else { depth++; }
+    if (depth === 0) {
+      const endIdx = hit.index + hit[0].length;
+      return {
+        full: source.substring(startIdx, endIdx),
+        inner: source.substring(startIdx + openTag.length, hit.index),
+        start: startIdx,
+        end: endIdx,
+        openTag,
+        closeTag: hit[0]
+      };
+    }
+  }
+  return null;
+}
+
 // ─── Convert scraped HTML into a Handlebars template ───
 function convertHTMLToTemplate(html, origin) {
   let tpl = html;
@@ -727,20 +791,24 @@ function convertHTMLToTemplate(html, origin) {
   tpl = tpl.replace(/<link[^>]*href=["'][^"']*\.css[^"']*["'][^>]*>/gi, '');
   tpl = tpl.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
-  // 3. Inject our own CSS link in <head>
-  if (tpl.includes('</head>')) {
-    tpl = tpl.replace('</head>', '<link rel="stylesheet" href="style.css">\n</head>');
-  } else {
-    tpl = '<link rel="stylesheet" href="style.css">\n' + tpl;
-  }
-
-  // 4. Fix relative image/asset URLs to absolute
+  // 3. Fix relative image/asset URLs to absolute (BEFORE injecting local CSS link)
   tpl = tpl.replace(/(src|href)=["'](?!data:|https?:|\/\/|#|\{\{)(\/?[^"']+)["']/gi, (match, attr, urlPath) => {
     try {
       const fullUrl = new URL(urlPath, origin).href;
       return `${attr}="${fullUrl}"`;
     } catch { return match; }
   });
+
+  // 4. Inject our own CSS link in <head> (AFTER URL absolutization so it stays local)
+  if (tpl.includes('</head>')) {
+    tpl = tpl.replace('</head>', '<link rel="stylesheet" href="style.css">\n</head>');
+  } else {
+    tpl = '<link rel="stylesheet" href="style.css">\n' + tpl;
+  }
+
+  // ─── Extract original person's name from h1 (for global cleanup later) ───
+  const h1Pre = tpl.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const origPersonName = h1Pre ? h1Pre[1].replace(/<[^>]+>/g, '').trim() : '';
 
   // ─── Replace NAME (h1 content) ───
   const h1Match = tpl.match(/<h1([^>]*)>([\s\S]*?)<\/h1>/i);
@@ -751,13 +819,18 @@ function convertHTMLToTemplate(html, origin) {
       detected.name = true;
     }
   }
-  // Fallback: title tag
-  if (!detected.name) {
-    tpl = tpl.replace(/<title[^>]*>[\s\S]*?<\/title>/i, '<title>{{name}} - Portfolio</title>');
+
+  // ─── Clean up: replace original person's name throughout the template ───
+  if (origPersonName && origPersonName.length > 2) {
+    const escapedName = origPersonName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // Replace in meta tags, title, descriptions, footer text, etc.
+    tpl = tpl.replace(new RegExp(escapedName, 'g'), '{{name}}');
   }
 
+  // Replace <title> with template variable
+  tpl = tpl.replace(/<title[^>]*>[\s\S]*?<\/title>/i, '<title>{{name}} - Portfolio</title>');
+
   // ─── Replace ROLE/SUBTITLE ───
-  // Look for h2 near the top with role-like words, or any subtitle-like element
   const rolePatterns = [
     /(<h2[^>]*>)([\s\S]*?)(<\/h2>)/gi,
     /(<(?:p|span|div)[^>]*class=["'][^"']*(?:subtitle|tagline|title|role|headline|hero-text|intro-text)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:p|span|div)>)/gi,
@@ -787,107 +860,197 @@ function convertHTMLToTemplate(html, origin) {
     }
   }
 
-  // ─── Replace ABOUT/BIO section ───
-  const aboutSectionPatterns = [
-    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:about|bio|intro|summary)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
-  ];
-  for (const pattern of aboutSectionPatterns) {
-    const match = pattern.exec(tpl);
-    if (match) {
-      // Find <p> tags inside the about section and replace with {{bio}}
-      let sectionHTML = match[2];
-      const pMatches = sectionHTML.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
-      if (pMatches) {
-        // Replace the first substantial paragraph with {{bio}}
-        let replaced = false;
-        for (const p of pMatches) {
-          const pText = p.replace(/<[^>]+>/g, '').trim();
-          if (pText.length > 30 && !replaced) {
-            sectionHTML = sectionHTML.replace(p, '<p>{{bio}}</p>');
-            replaced = true;
-            detected.bio = true;
-          }
+  // ─── Replace ABOUT/BIO section (with proper nested-tag handling) ───
+  const aboutPattern = /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:about|bio|intro|summary)[^"']*["'][^>]*>/gi;
+  const aboutSec = findFullSection(tpl, aboutPattern);
+  if (aboutSec) {
+    let inner = aboutSec.inner;
+    // Find all <p> tags in the full about section content
+    const pMatches = [...inner.matchAll(/<p([^>]*)>([\s\S]*?)<\/p>/gi)];
+    const substantial = pMatches.filter(m => m[2].replace(/<[^>]+>/g, '').trim().length > 20);
+
+    if (substantial.length > 0) {
+      // Replace first substantial paragraph with {{bio}}, remove the rest
+      let bioPlaced = false;
+      for (const p of substantial) {
+        if (!bioPlaced) {
+          inner = inner.replace(p[0], `<p${p[1]}>{{bio}}</p>`);
+          bioPlaced = true;
+        } else {
+          // Remove other paragraphs (they contain original person's data)
+          inner = inner.replace(p[0], '');
         }
-        tpl = tpl.replace(match[2], sectionHTML);
       }
-      break;
+      tpl = tpl.replace(aboutSec.full, aboutSec.openTag + inner + aboutSec.closeTag);
+      detected.bio = true;
     }
   }
 
-  // ─── Replace SKILLS section ───
-  const skillsSectionPatterns = [
-    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:skill|tech|stack|tool|competenc|expertise)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
-  ];
-  for (const pattern of skillsSectionPatterns) {
-    const match = pattern.exec(tpl);
-    if (match) {
-      let sectionHTML = match[2];
-      // Find the list/container of skill items
-      const ulMatch = sectionHTML.match(/<(ul|ol|div)[^>]*>([\s\S]*?)<\/\1>/i);
-      if (ulMatch) {
-        // Find one skill item to use as a template
-        const itemMatch = ulMatch[2].match(/<(li|span|div|a)[^>]*>([\s\S]*?)<\/\1>/i);
-        if (itemMatch) {
-          const skillItemTemplate = itemMatch[0].replace(itemMatch[2], '{{this}}');
-          const replacement = `<${ulMatch[1]}${ulMatch[0].match(/<(?:ul|ol|div)([^>]*)>/i)?.[1] || ''}>{{#each (split skills ",")}}\n${skillItemTemplate}\n{{/each}}</${ulMatch[1]}>`;
-          sectionHTML = sectionHTML.replace(ulMatch[0], replacement);
-          tpl = tpl.replace(match[2], sectionHTML);
+  // ─── Replace SKILLS section (with proper nested-tag handling) ───
+  const skillsPattern = /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:skill|tech|stack|tool|competenc|expertise)[^"']*["'][^>]*>/gi;
+  const skillsSec = findFullSection(tpl, skillsPattern);
+  if (skillsSec) {
+    let inner = skillsSec.inner;
+    // Find a list container (ul/ol)
+    const ulOpenMatch = inner.match(/<(ul|ol)[^>]*>/i);
+    if (ulOpenMatch) {
+      const ulSec = findFullSection(inner, new RegExp(`<${ulOpenMatch[1]}[^>]*>`, 'gi'));
+      if (ulSec) {
+        // Find one <li> to use as template
+        const liMatch = ulSec.inner.match(/<li([^>]*)>([\s\S]*?)<\/li>/i);
+        if (liMatch) {
+          const liTemplate = `<li${liMatch[1]}>{{this}}</li>`;
+          const newList = `${ulSec.openTag}\n{{#each (split skills ",")}}\n${liTemplate}\n{{/each}}\n${ulSec.closeTag}`;
+          inner = inner.replace(ulSec.full, newList);
+          tpl = tpl.replace(skillsSec.full, skillsSec.openTag + inner + skillsSec.closeTag);
           detected.skills = true;
         }
       }
-      break;
     }
-  }
-
-  // ─── Replace PROJECTS section ───
-  const projectSectionPatterns = [
-    /(<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:project|work|portfolio|featured)[^"']*["'][^>]*>)([\s\S]*?)(<\/(?:section|div)>)/gi,
-  ];
-  for (const pattern of projectSectionPatterns) {
-    const match = pattern.exec(tpl);
-    if (match) {
-      let sectionHTML = match[2];
-      // Find project cards (articles, divs with card/item class, or list items)
-      const cardPatterns = [
-        /<(article|div|li)[^>]*(?:class=["'][^"']*(?:card|item|project|featured)[^"']*["'])[^>]*>[\s\S]*?<\/\1>/gi,
-        /<(article)[^>]*>[\s\S]*?<\/\1>/gi,
-      ];
-      let cards = [];
-      for (const cp of cardPatterns) {
-        cards = sectionHTML.match(cp) || [];
-        if (cards.length > 0) break;
-      }
-
-      if (cards.length > 0) {
-        // Use the first card as the template for the each loop
-        let cardTemplate = cards[0];
-        // Replace title (h2/h3/h4)
-        cardTemplate = cardTemplate.replace(/<(h[2-4]|strong)([^>]*)>[\s\S]*?<\/\1>/i, '<$1$2>{{this.title}}</$1>');
-        // Replace description (first <p>)
-        cardTemplate = cardTemplate.replace(/<p([^>]*)>[\s\S]*?<\/p>/i, '<p$1>{{this.description}}</p>');
-        // Replace link
-        cardTemplate = cardTemplate.replace(/href=["'][^"'#][^"']*["']/i, 'href="{{this.link}}"');
-
-        // Replace all original cards with the {{#each}} loop
-        let projectContainer = sectionHTML;
-        // Remove all original cards
-        for (const card of cards) {
-          projectContainer = projectContainer.replace(card, '');
+    // Also try: skill tags as span/div items (e.g. Tailwind pill badges)
+    if (!detected.skills) {
+      const tagItems = [...inner.matchAll(/<(span|div|a)([^>]*)>([^<]{1,50})<\/\1>/gi)];
+      if (tagItems.length >= 3) {
+        const template = `<${tagItems[0][1]}${tagItems[0][2]}>{{this}}</${tagItems[0][1]}>`;
+        // Remove all original skill tag items
+        for (const item of tagItems) {
+          inner = inner.replace(item[0], '');
         }
-        // Insert the each loop where first card was
-        const insertPoint = sectionHTML.indexOf(cards[0]);
-        const before = sectionHTML.substring(0, insertPoint);
-        // Find end of last card
-        const lastCardEnd = sectionHTML.lastIndexOf(cards[cards.length - 1]) + cards[cards.length - 1].length;
-        const after = sectionHTML.substring(lastCardEnd);
-        sectionHTML = before + '{{#each projects}}\n' + cardTemplate + '\n{{/each}}' + after;
-
-        tpl = tpl.replace(match[2], sectionHTML);
-        detected.projects = true;
+        // Insert the each loop where the first item was
+        inner = inner.replace(/(>\s*)/, `$1\n{{#each (split skills ",")}}\n${template}\n{{/each}}\n`);
+        tpl = tpl.replace(skillsSec.full, skillsSec.openTag + inner + skillsSec.closeTag);
+        detected.skills = true;
       }
-      break;
     }
   }
+
+  // ─── Replace PROJECTS section (with proper nested-tag handling + broader card detection) ───
+  const projPattern = /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:project|work|portfolio|featured)[^"']*["'][^>]*>/gi;
+  const projSec = findFullSection(tpl, projPattern);
+  if (projSec) {
+    let inner = projSec.inner;
+
+    // Strategy: find repeating card elements (li, article, or card-class divs)
+    let cards = [];
+    let cardContainer = null;
+
+    // Try 1: find a <ul>/<ol> and extract its <li> children as cards
+    const listOpenMatch = inner.match(/<(ul|ol)([^>]*)>/i);
+    if (listOpenMatch) {
+      cardContainer = findFullSection(inner, new RegExp(`<${listOpenMatch[1]}[^>]*>`, 'gi'));
+      if (cardContainer) {
+        const liRegex = /<li[^>]*>/gi;
+        let liM;
+        while ((liM = liRegex.exec(cardContainer.inner)) !== null) {
+          const liSec = findFullSection(cardContainer.inner.substring(liM.index), /^<li[^>]*>/gi);
+          if (liSec && liSec.inner.replace(/<[^>]+>/g, '').trim().length > 20) {
+            cards.push(liSec);
+          }
+        }
+      }
+    }
+
+    // Try 2: find <article> elements
+    if (cards.length === 0) {
+      const artRegex = /<article[^>]*>/gi;
+      let am;
+      while ((am = artRegex.exec(inner)) !== null) {
+        const artSec = findFullSection(inner.substring(am.index), /^<article[^>]*>/gi);
+        if (artSec && artSec.inner.replace(/<[^>]+>/g, '').trim().length > 20) {
+          cards.push(artSec);
+        }
+      }
+    }
+
+    // Try 3: find divs with card/item/project class
+    if (cards.length === 0) {
+      const cardDivRegex = /<div[^>]*class=["'][^"']*(?:card|item|project|featured)[^"']*["'][^>]*>/gi;
+      let dm;
+      while ((dm = cardDivRegex.exec(inner)) !== null) {
+        const divSec = findFullSection(inner.substring(dm.index), /^<div[^>]*>/gi);
+        if (divSec && divSec.inner.replace(/<[^>]+>/g, '').trim().length > 20) {
+          cards.push(divSec);
+        }
+      }
+    }
+
+    if (cards.length > 0) {
+      // Use the first card as the project template
+      let cardTemplate = cards[0].full;
+
+      // Replace title: h2/h3/h4/strong, or the main <a> link text
+      const headingMatch = cardTemplate.match(/<(h[2-4]|strong)([^>]*)>([\s\S]*?)<\/\1>/i);
+      if (headingMatch) {
+        cardTemplate = cardTemplate.replace(headingMatch[0], `<${headingMatch[1]}${headingMatch[2]}>{{this.title}}</${headingMatch[1]}>`);
+      } else {
+        // Try to replace the first prominent link text as the title
+        const linkMatch = cardTemplate.match(/<a([^>]*)>([\s\S]*?)<\/a>/i);
+        if (linkMatch && linkMatch[2].replace(/<[^>]+>/g, '').trim().length > 3) {
+          cardTemplate = cardTemplate.replace(linkMatch[0], `<a${linkMatch[1]}>{{this.title}}</a>`);
+        }
+      }
+
+      // Replace description (first <p> with substantial text)
+      const descMatch = cardTemplate.match(/<p([^>]*)>([\s\S]*?)<\/p>/i);
+      if (descMatch && descMatch[2].replace(/<[^>]+>/g, '').trim().length > 10) {
+        cardTemplate = cardTemplate.replace(descMatch[0], `<p${descMatch[1]}>{{this.description}}</p>`);
+      }
+
+      // Replace link hrefs (but not # or template vars)
+      cardTemplate = cardTemplate.replace(/href=["'][^"'#\{][^"']*["']/i, 'href="{{this.link}}"');
+
+      // Remove tech tag lists within the card (user doesn't provide per-project tech)
+      cardTemplate = cardTemplate.replace(/<ul[^>]*aria-label=["'][^"']*(?:technolog|tool|tech|used)[^"']*["'][^>]*>[\s\S]*?<\/ul>/gi, '');
+
+      // Remove card images (they reference original person's project screenshots)
+      cardTemplate = cardTemplate.replace(/<img[^>]*(?:project|card|screenshot|thumb)[^>]*>/gi, '');
+
+      // Build the {{#each projects}} loop
+      if (cardContainer) {
+        // Replace the entire list container content with the each loop
+        const newContainerContent = `\n{{#each projects}}\n${cardTemplate}\n{{/each}}\n`;
+        const newContainer = cardContainer.openTag + newContainerContent + cardContainer.closeTag;
+        inner = inner.replace(cardContainer.full, newContainer);
+      } else {
+        // Remove all original cards and insert the each loop
+        let cleanInner = inner;
+        for (const card of cards) {
+          cleanInner = cleanInner.replace(card.full, '');
+        }
+        // Find a good insertion point (where the first card was)
+        const firstCardIdx = inner.indexOf(cards[0].full);
+        const before = inner.substring(0, firstCardIdx);
+        const afterLastCard = inner.indexOf(cards[cards.length - 1].full) + cards[cards.length - 1].full.length;
+        const after = inner.substring(afterLastCard);
+        inner = before + `\n{{#each projects}}\n${cardTemplate}\n{{/each}}\n` + after;
+      }
+
+      tpl = tpl.replace(projSec.full, projSec.openTag + inner + projSec.closeTag);
+      detected.projects = true;
+    }
+  }
+
+  // ─── Remove non-templatable sections (experience, writing, blog, testimonials) ───
+  // These contain original person's data and the user's form doesn't provide equivalents
+  const removablePatterns = [
+    /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:experience|work-history|employment|career)[^"']*["'][^>]*>/gi,
+    /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:writing|blog|posts|articles|publications)[^"']*["'][^>]*>/gi,
+    /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:testimonial|reviews|endorsement)[^"']*["'][^>]*>/gi,
+    /<(?:section|div)[^>]*(?:id|class)=["'][^"']*(?:education|certification|award)[^"']*["'][^>]*>/gi,
+  ];
+  for (const pattern of removablePatterns) {
+    const sec = findFullSection(tpl, pattern);
+    if (sec) {
+      // Only remove if this section wasn't already templated
+      if (!sec.full.includes('{{#each') && !sec.full.includes('{{bio}}') && !sec.full.includes('{{role}}')) {
+        tpl = tpl.replace(sec.full, '');
+      }
+    }
+  }
+
+  // ─── Also clean up nav links pointing to removed sections ───
+  tpl = tpl.replace(/<(?:li|a)[^>]*>\s*<a[^>]*href=["']#(?:experience|writing|blog|education|testimonial)[^"']*["'][^>]*>[\s\S]*?<\/(?:li|a)>/gi, '');
+  tpl = tpl.replace(/<a[^>]*href=["']#(?:experience|writing|blog|education|testimonial)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '');
 
   // ─── Replace EMAIL ───
   const emailRegex = /[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}/g;
@@ -908,12 +1071,25 @@ function convertHTMLToTemplate(html, origin) {
   tpl = tpl.replace(/https?:\/\/(?:www\.)?linkedin\.com\/in\/[\w-]+/gi, '{{linkedinUrl}}');
   if (/\{\{githubUrl\}\}|\{\{linkedinUrl\}\}/.test(tpl)) detected.social = true;
 
+  // ─── Remove other social links pointing to original person's accounts ───
+  // Replace specific third-party profile URLs (codepen, instagram, twitter, etc.) with empty
+  tpl = tpl.replace(/https?:\/\/(?:www\.)?(?:codepen\.io|instagram\.com|twitter\.com|dribbble\.com|behance\.net|goodreads\.com)\/[\w.-]+[^"']*/gi, '#');
+
+  // ─── Clean up footer text referencing original person ───
+  // Remove "built by" / "designed by" / "coded by" attribution text
+  const footerSec = findFullSection(tpl, /<footer[^>]*>/gi);
+  if (footerSec) {
+    let footerInner = footerSec.inner;
+    // Replace specific paragraphs that mention personal attribution
+    footerInner = footerInner.replace(/<p[^>]*>[\s\S]*?(?:designed|coded|built|made)[\s\S]*?(?:by|in)[\s\S]*?<\/p>/gi,
+      '<p>Built with ❤️</p>');
+    tpl = tpl.replace(footerSec.full, footerSec.openTag + footerInner + footerSec.closeTag);
+  }
+
   // ─── Fallback: if no sections detected, inject minimal placeholders ───
   if (!detected.name && !detected.role && !detected.bio) {
-    // Wrap the body content with our own template structure
     const bodyMatch = tpl.match(/<body[^>]*>([\s\S]*)<\/body>/i);
     if (bodyMatch) {
-      // Prepend a hero section
       const heroSection = `
 <section style="text-align:center;padding:3rem 1rem;">
   <h1>{{name}}</h1>
@@ -928,7 +1104,6 @@ function convertHTMLToTemplate(html, origin) {
   }
 
   if (!detected.skills) {
-    // Inject a skills section before </body>
     const skillsSection = `
 <section style="padding:2rem 1rem;text-align:center;">
   <h2>Skills</h2>
@@ -1133,17 +1308,26 @@ app.get('/api/preview/:templateId', async (req, res) => {
       return res.status(404).send('Template not found');
     }
 
-    const tplSrc = await fs.readFile(tplPath, 'utf8');
-    const cssSrc = await fs.pathExists(cssPath) ? await fs.readFile(cssPath, 'utf8') : '';
+    // Use cached compiled template
+    let compiled, cssSrc;
+    try {
+      const cached = await getCompiledTemplate(templateId);
+      compiled = cached.compiled;
+      cssSrc = cached.cssSrc;
+    } catch (e) {
+      const tplSrc = await fs.readFile(tplPath, 'utf8');
+      cssSrc = await fs.pathExists(cssPath) ? await fs.readFile(cssPath, 'utf8') : '';
+      compiled = Handlebars.compile(tplSrc);
+    }
     
-    // Compile and render with sample data
-    const tpl = Handlebars.compile(tplSrc);
-    const html = tpl(sampleData);
+    const html = compiled(sampleData);
     
     // Inject CSS inline for preview
     const htmlWithStyle = html.replace('</head>', `<style>${cssSrc}</style></head>`);
     
+    // Cache preview responses for 10 minutes
     res.setHeader('Content-Type', 'text/html');
+    res.setHeader('Cache-Control', 'public, max-age=600');
     res.send(htmlWithStyle);
   } catch (err) {
     console.error('Preview error:', err);

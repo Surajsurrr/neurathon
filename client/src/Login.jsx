@@ -59,22 +59,13 @@ export default function Login() {
       setSuccess(isSignup ? 'Account created successfully!' : 'Logged in successfully!')
       setTimeout(() => {
         try {
-          // Prefer returning to the previous page if available (landing or last-used page)
-          if (document.referrer && document.referrer.includes(window.location.host)) {
-            window.history.back()
-            return
-          }
-
-          // If there is history to go back to, use it
-          if (window.history.length > 1) {
-            window.history.back()
-            return
-          }
-
-          // Fallback: redirect to landing (root) with a flag
-          window.location.href = '/?showLanding=1'
+          // If a redirect query param is present, honor it. Otherwise go to root.
+          const params = new URLSearchParams(window.location.search)
+          const redirect = params.get('redirect') || '/' 
+          // Use replace to avoid creating an extra history entry
+          window.location.replace(redirect)
         } catch (e) {
-          window.location.href = '/'
+          window.location.replace('/')
         }
       }, 800)
     }, 600)

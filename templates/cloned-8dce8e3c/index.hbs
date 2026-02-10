@@ -1,22 +1,21 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Matt Farley | Designer, Frontend Developer &amp; Mentor
-    </title>
+    <title>{{name}} - Portfolio</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="x-ua-compatible" content="ie=edge">
     <link rel="canonical" href="https://mattfarley.ca">
     <meta property="og:site_name" content="Matt Farley">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Matt Farley | Designer, Frontend Developer &amp; Mentor">
+    <meta property="og:title" content="Matt Farley | {{name}}">
     <meta property="og:description" content="I design and code beautifully simple things, and I love what I do.">
     <meta property="og:image:secure_url" content="https://mattfarley.ca/img/mf-og-brand.png">
     <meta property="og:url" content="https://mattfarley.ca">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:site" content="@farleymatters">
     <meta name="twitter:creator" content="@farleymatters">
-    <meta name="twitter:title" content="Matt Farley | Designer, Frontend Developer &amp; Mentor">
+    <meta name="twitter:title" content="Matt Farley | {{name}}">
     <meta name="twitter:description" content="I design and code beautifully simple things, and I love what I do.">
     <meta name="twitter:image" content="https://mattfarley.ca/img/mf-og-brand.png">
     <meta name="twitter:image:alt" content="Designer and developer tool illustrations">
@@ -74,9 +73,11 @@
                 <p class="list-title has-text-primary has-text-weight-normal">Things I enjoy designing:</p>
                 <p>UX, UI, Web, Apps, Logos</p>
                 <p class="list-title has-text-primary has-text-weight-normal">Design Tools:</p>
-                <ul>{{#each (split skills ",")}}
+                <ul>
+{{#each (split skills ",")}}
 <li>{{this}}</li>
-{{/each}}</ul>
+{{/each}}
+</ul>
               </div>
               <div class="column"><span class="fa-stack fa-2x"><i class="fa-solid fa-circle fa-stack-2x has-text-success"></i><i class="fa-light fa-square-terminal fa-stack-1x has-text-dark"></i></span>
                 <h1 class="title is-size-4 is-spaced">Frontend Developer</h1>
@@ -121,18 +122,20 @@
       <div class="container is-narrow">
         <h1 class="title is-spaced is-size-3-desktop is-size-4-mobile">My Recent Work</h1>
         <h2 class="subtitle is-size-5-desktop">Here are a few past design projects I've worked on. Want to see more? <a class="has-text-weight-normal" href="mailto:{{email}}">Email me</a>.</h2>
-        <div class="project-grid">  
+        
+{{#each projects}}
+<div class="project-grid">  
           <div class="columns is-multiline is-mobile">
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop">
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/wfdesignbuild.png">
+              <figure class="image is-3by2">
                 <figcaption>
-                  <h1 class="title is-size-5 is-size-4-widescreen">High-end, custom residential renovaters serving Fraser Valley homeowners.</h1><a class="button is-primary is-outlined is-rounded" href="https://wfdesignbuild.com" target="_blank"><span>Visit Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
+                  <h1 class="title is-size-5 is-size-4-widescreen">High-end, custom residential renovaters serving Fraser Valley homeowners.</h1><a class="button is-primary is-outlined is-rounded" href="{{this.link}}" target="_blank">{{this.title}}</a>
                 </figcaption>
                 <div class="overlay"></div>
               </figure>
             </div>
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop"> 
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/burkettandco.png">
+              <figure class="image is-3by2">
                 <figcaption>
                   <h1 class="title is-size-5 is-size-4-widescreen">Accounting and tax services characterized by quality, reliability and trust.</h1><a class="button is-primary is-outlined is-rounded" href="https://www.burkettandco.ca/" target="_blank"><span>Visit Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
                 </figcaption>
@@ -140,7 +143,7 @@
               </figure>
             </div>
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop">
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/chronicled.png">
+              <figure class="image is-3by2">
                 <figcaption>
                   <h1 class="title is-size-5 is-size-4-widescreen">Blockchain pioneers bringing transparency, trust, and security to supply.</h1><a class="button is-primary is-outlined is-rounded" href="https://www.chronicled.com/" target="_blank"><span>Visit Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
                 </figcaption>
@@ -148,7 +151,7 @@
               </figure>
             </div>
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop">
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/glcsolutions.png">
+              <figure class="image is-3by2">
                 <figcaption>
                   <h1 class="title is-size-5 is-size-4-widescreen">Business savvy tech experts helping forward thinking companies get things done.</h1><a class="button is-primary is-outlined is-rounded" href="http://glcsolutions.ca" target="_blank"><span>Visit Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
                 </figcaption>
@@ -156,7 +159,7 @@
               </figure>
             </div>
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop"> 
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/coupal.png">
+              <figure class="image is-3by2">
                 <figcaption>
                   <h1 class="title is-size-5 is-size-4-widescreen">Vancouver's tower crane rental service and support leader since 1974.</h1><a class="button is-primary is-outlined is-rounded" href="http://coupalcranes.com/" target="_blank"><span>Visit Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
                 </figcaption>
@@ -164,7 +167,7 @@
               </figure>
             </div>
             <div class="column is-12-mobile is-half-tablet is-one-third-desktop"> 
-              <figure class="image is-3by2"><img class="project-thumb" src="https://mattfarley.ca/img/projects/wedlerengineering.png">
+              <figure class="image is-3by2">
                 <figcaption>
                   <h1 class="title is-size-5 is-size-4-widescreen">Results-oriented, responsive and flexible full service civil engineering firm.</h1><a class="button is-primary is-outlined is-rounded" href="http://wedler.com" target="_blank"><span>View Website</span><span class="icon"><i class="fas fa-angle-right"></i></span></a>
                 </figcaption>
@@ -173,8 +176,10 @@
             </div>
           </div>
         </div>
+{{/each}}
+
         <div class="columns is-centered">
-          <div class="column"><a class="button is-primary is-outlined is-rounded is-medium has-text-weight-normal" href="https://dribbble.com/mattfarley"><span class="icon"><i class="fab fa-dribbble"></i></span><span>See more on Dribbble</span></a></div>
+          <div class="column"><a class="button is-primary is-outlined is-rounded is-medium has-text-weight-normal" href="#"><span class="icon"><i class="fab fa-dribbble"></i></span><span>See more on Dribbble</span></a></div>
         </div>
       </div>
     </section>
@@ -286,43 +291,7 @@
         </div>
       </div>
     </section>
-    <section class="section testimonials is-medium is-white has-text-centered has-border-top">
-      <div class="container is-narrow">
-        <h1 class="title is-spaced is-size-3-desktop is-size-4-mobile">Testimonials</h1>
-        <h2 class="subtitle is-size-5-desktop">People I've worked with have said some nice things...</h2>
-        <div class="columns is-centered">
-          <div class="column is-two-thirds">
-            <div class="testimonials-slider">                     
-              <input id="carousel-1" type="radio" name="carousel" checked="">
-              <input id="carousel-2" type="radio" name="carousel">
-              <input id="carousel-3" type="radio" name="carousel">
-              <div class="carousel-slides">
-                <div class="carousel-inner">
-                  <div class="carousel-item">
-                    <div class="testimonial-block"><img class="avatar" src="https://mattfarley.ca/img/avatars/pascal.png">
-                      <p class="quote">“Matt was a real pleasure to work with and we look forward to working with him again. He’s definitely the kind of designer you can trust with a project from start to finish.”</p>
-                      <h1 class="title is-size-5">Pascal Tremblay</h1>
-                      <h2 class="subtitle is-size-6">Creative Lead, Good Kind</h2>
-                    </div>
-                  </div>
-                  <div class="carousel-item">
-                    <div class="testimonial-block"><img class="avatar" src="https://mattfarley.ca/img/avatars/alvin.png">
-                      <p class="quote">“Matt's a clear communicator with the tenacity and confidence to really dig in to tricky design scenarios and the collaborative friction that's needed to produce excellent work.”</p>
-                      <h1 class="title is-size-5">Alvin Engler</h1>
-                      <h2 class="subtitle is-size-6">CEO, West Third Enterprises, Inc.</h2>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="carousel-nav">
-                <label for="carousel-1"></label>
-                <label for="carousel-2"></label>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
+    
     <section class="section call-to-action is-primary has-text-centered">
       <div class="container is-narrow">
         <div class="box">
@@ -346,23 +315,12 @@
           </div>
         </div>
         <div class="social-icons">
-          <p class="field"><a class="button is-medium" href="https://twitter.com/farleymatters" target="_blank"><span class="icon is-small"><i class="fab fa-twitter fa-fw"></i></span></a><a class="button is-medium" href="https://dribbble.com/mattfarley" target="_blank"><span class="icon is-small"><i class="fab fa-dribbble fa-fw"></i></span></a><a class="button is-medium" href="{{linkedinUrl}}/" target="_blank"><span class="icon is-small"><i class="fab fa-linkedin-in fa-fw"></i></span></a><a class="button is-medium" href="https://indiehackers.com/mattfarley" target="_blank"><span class="icon is-small"><i class="fak fa-indie-hackers fa-fw"></i></span></a><a class="button is-medium" href="https://producthunt.com/@farleymatters" target="_blank"><span class="icon is-small"><i class="fab fa-product-hunt fa-fw"></i></span></a><a class="button is-medium" href="mailto:{{email}}"><span class="icon is-small"><i class="far fa-envelope fa-fw"></i></span></a></p>
+          <p class="field"><a class="button is-medium" href="#" target="_blank"><span class="icon is-small"><i class="fab fa-twitter fa-fw"></i></span></a><a class="button is-medium" href="#" target="_blank"><span class="icon is-small"><i class="fab fa-dribbble fa-fw"></i></span></a><a class="button is-medium" href="{{linkedinUrl}}/" target="_blank"><span class="icon is-small"><i class="fab fa-linkedin-in fa-fw"></i></span></a><a class="button is-medium" href="https://indiehackers.com/mattfarley" target="_blank"><span class="icon is-small"><i class="fak fa-indie-hackers fa-fw"></i></span></a><a class="button is-medium" href="https://producthunt.com/@farleymatters" target="_blank"><span class="icon is-small"><i class="fab fa-product-hunt fa-fw"></i></span></a><a class="button is-medium" href="mailto:{{email}}"><span class="icon is-small"><i class="far fa-envelope fa-fw"></i></span></a></p>
         </div>
         <div class="copyright">Handcrafted by me<span class="icon has-white-text" style="vertical-align:middle;"><i class="far fa-copyright"></i></span>twentytwentyfour</div>
         <div class="made-by-bulma"><a href="https://bulma.io"><img src="https://mattfarley.ca/img/made-with-bulma--white.png" alt="Made with Bulma" width="163" height="31"></a></div>
       </div>
     </footer>
     
-  
-<section style="padding:2rem 1rem;max-width:800px;margin:0 auto;">
-  <h2 style="text-align:center;">Projects</h2>
-  {{#each projects}}
-  <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:1.5rem;margin:1rem 0;">
-    <h3>{{this.title}}</h3>
-    <p>{{this.description}}</p>
-    {{#if this.link}}<a href="{{this.link}}" target="_blank">View Project →</a>{{/if}}
-  </div>
-  {{/each}}
-</section>
-</body>
+  </body>
 </html>
